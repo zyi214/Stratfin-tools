@@ -1,0 +1,29 @@
+period,category,type,amount,cash_balance_eop
+2025-01,Payroll,outflow,820000,7180000
+2025-01,COGS - Components,outflow,210000,7180000
+2025-01,NRE / Tooling,outflow,150000,7180000
+2025-01,Cloud & Infrastructure,outflow,42000,7180000
+2025-01,Travel & Facilities,outflow,38000,7180000
+2025-01,G&A,outflow,55000,7180000
+2025-01,Customer Revenue,inflow,180000,7180000
+2025-02,Payroll,outflow,835000,6112000
+2025-02,COGS - Components,outflow,245000,6112000
+2025-02,NRE / Tooling,outflow,300000,6112000
+2025-02,Cloud & Infrastructure,outflow,44000,6112000
+2025-02,Travel & Facilities,outflow,41000,6112000
+2025-02,G&A,outflow,57000,6112000
+2025-02,Customer Revenue,inflow,210000,6112000
+2025-03,Payroll,outflow,870000,4985000
+2025-03,COGS - Components,outflow,310000,4985000
+2025-03,NRE / Tooling,outflow,80000,4985000
+2025-03,Cloud & Infrastructure,outflow,45000,4985000
+2025-03,Travel & Facilities,outflow,36000,4985000
+2025-03,G&A,outflow,61000,4985000
+2025-03,Customer Revenue,inflow,267000,4985000
+2025-04,Payroll,outflow,895000,3882000
+2025-04,COGS - Components,outflow,290000,3882000
+2025-04,NRE / Tooling,outflow,50000,3882000
+2025-04,Cloud & Infrastructure,outflow,47000,3882000
+2025-04,Travel & Facilities,outflow,39000,3882000
+2025-04,G&A,outflow,63000,3882000
+2025-04,Customer Revenue,inflow,309000,3882000

@@ -1,0 +1,25 @@
+employee_id,name,department,level,role_type,status,hire_date,req_open_date,budget_hc,lf_hc,annual_salary,fully_loaded_cost
+E001,Alice Chen,Engineering,Senior,FTE,filled,2023-03-15,,1,1,175000,227500
+E002,Bob Martinez,Engineering,Senior,FTE,filled,2023-07-01,,1,1,168000,218400
+E003,Carol Liu,Engineering,Staff,FTE,filled,2022-11-01,,1,1,195000,253500
+E004,Dan Park,Engineering,Mid,FTE,filled,2024-01-08,,1,1,145000,188500
+E005,Emma Wilson,Engineering,Senior,FTE,filled,2024-03-11,,1,1,172000,223600
+E006,,Engineering,Senior,FTE,open,,2024-10-01,1,1,170000,221000
+E007,,Engineering,Mid,FTE,open,,2024-11-15,1,1,142000,184600
+E008,,Engineering,Mid,FTE,open,,2025-01-10,1,1,140000,182000
+E009,Fiona Ng,Product,Senior,FTE,filled,2023-05-20,,1,1,165000,214500
+E010,George Kim,Product,Senior,FTE,filled,2024-02-01,,1,1,160000,208000
+E011,,Product,Mid,FTE,open,,2024-12-01,1,1,138000,179400
+E012,Hannah Lee,Sales,Senior,FTE,filled,2023-09-01,,1,1,130000,169000
+E013,Ian Torres,Sales,Mid,FTE,filled,2024-04-15,,1,1,110000,143000
+E014,Julia Adams,Sales,Mid,FTE,filled,2024-06-01,,1,1,108000,140400
+E015,Kevin Brown,Sales,Junior,FTE,filled,2024-08-20,,1,1,90000,117000
+E016,Laura Davis,Sales,Junior,FTE,filled,2025-01-06,,1,1,88000,114400
+E017,Mike Johnson,Finance,Senior,FTE,filled,2022-08-01,,1,1,155000,201500
+E018,Nina Patel,Finance,Mid,FTE,filled,2023-11-01,,1,1,120000,156000
+E019,,Finance,Mid,FTE,open,,2025-02-01,1,1,118000,153400
+E020,Omar Hassan,G&A,Senior,FTE,filled,2022-06-15,,1,1,148000,192400
+E021,Priya Singh,G&A,Mid,FTE,filled,2023-04-01,,1,1,112000,145600
+E022,Quinn Roberts,Operations,Senior,FTE,filled,2024-01-15,,1,1,135000,175500
+E023,Rachel Kim,Operations,Mid,FTE,filled,2024-05-01,,1,1,105000,136500
+E024,,Operations,Mid,FTE,open,,2024-09-15,1,1,103000,133900
