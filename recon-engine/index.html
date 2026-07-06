@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -250,7 +250,7 @@ header::after {
 /* Upload Section */
 .upload-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
   margin-bottom: 2rem;
 }
@@ -362,7 +362,7 @@ header::after {
 /* Column Mapping Section */
 .mapping-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2.5rem;
   margin-bottom: 2rem;
 }
@@ -435,7 +435,7 @@ select:focus {
 }
 
 .select-wrapper::after {
-  content: 'â–¼';
+  content: '▼';
   font-size: 0.7rem;
   color: var(--text-muted);
   position: absolute;
@@ -775,6 +775,20 @@ tr:hover td {
   background: rgba(249, 115, 22, 0.15);
   color: #f97316;
   border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.badge-tbh {
+  background: rgba(139, 92, 246, 0.15); /* Purple */
+  color: #a78bfa; /* Light Purple */
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.tbh-indicator {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  font-weight: 500;
+  margin-left: 0.25rem;
 }
 
 /* Pagination */
@@ -1175,6 +1189,23 @@ tr:hover td {
               <button class="file-remove" onclick="event.stopPropagation(); removeFile('Curr')">&times;</button>
             </div>
           </div>
+
+          <!-- TBH Mapping Upload (Optional) -->
+          <div class="upload-card" id="uploadTbhCard">
+            <input type="file" id="fileTbh" accept=".xlsx,.xls,.csv" style="display: none;">
+            <div class="upload-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101M10.172 13.828a4 4 0 0 0 5.656 0l4-4a4 4 0 1 0-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </div>
+            <h3>TBH to Employee Mapping</h3>
+            <p>Drag & drop or click to upload mapping file (Optional)</p>
+            <div id="fileTbhInfo" class="file-info" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span class="file-name">filename.csv</span>
+              <button class="file-remove" onclick="event.stopPropagation(); removeFile('Tbh')">&times;</button>
+            </div>
+          </div>
         </div>
 
         <div class="btn-group">
@@ -1274,6 +1305,25 @@ tr:hover td {
               </div>
             </div>
           </div>
+
+          <!-- TBH Mapping Columns (Optional) -->
+          <div class="mapping-card" id="mappingCardTbh" style="display: none;">
+            <h3>TBH Mapping Columns <span>(File: <span id="lblTbhFile"></span>)</span></h3>
+            
+            <div class="mapping-field">
+              <label for="mapTbhTbhId">TBH Number / ID *</label>
+              <div class="select-wrapper">
+                <select id="mapTbhTbhId"></select>
+              </div>
+            </div>
+            
+            <div class="mapping-field">
+              <label for="mapTbhEmpId">Employee ID *</label>
+              <div class="select-wrapper">
+                <select id="mapTbhEmpId"></select>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="btn-group">
@@ -1308,6 +1358,7 @@ tr:hover td {
         <div class="kpi-card hires">
           <div class="kpi-label">New Hires</div>
           <div class="kpi-value" id="kpiHires">0</div>
+          <div id="kpiHiresSub" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; display: none;">0 from TBH</div>
         </div>
         <div class="kpi-card terms">
           <div class="kpi-label">Terminations</div>
@@ -1353,7 +1404,7 @@ tr:hover td {
           <div class="multiselect-container filter-select" id="multiMovementContainer">
             <button type="button" class="multiselect-btn" id="btnMultiMovement" onclick="toggleMultiselect('Movement')">
               <span class="multiselect-label">Special Movements</span>
-              <span class="multiselect-arrow">â–¼</span>
+              <span class="multiselect-arrow">▼</span>
             </button>
             <div class="multiselect-dropdown" id="dropdownMultiMovement" style="display: none;">
               <div class="multiselect-search-wrapper">
@@ -1373,7 +1424,7 @@ tr:hover td {
           <div class="multiselect-container filter-select" id="multiCcContainer">
             <button type="button" class="multiselect-btn" id="btnMultiCc" onclick="toggleMultiselect('Cc')">
               <span class="multiselect-label">All Cost Centers</span>
-              <span class="multiselect-arrow">â–¼</span>
+              <span class="multiselect-arrow">▼</span>
             </button>
             <div class="multiselect-dropdown" id="dropdownMultiCc" style="display: none;">
               <div class="multiselect-search-wrapper">
@@ -1393,7 +1444,7 @@ tr:hover td {
           <div class="multiselect-container filter-select" id="multiSectorContainer">
             <button type="button" class="multiselect-btn" id="btnMultiSector" onclick="toggleMultiselect('Sector')">
               <span class="multiselect-label">All Sectors</span>
-              <span class="multiselect-arrow">â–¼</span>
+              <span class="multiselect-arrow">▼</span>
             </button>
             <div class="multiselect-dropdown" id="dropdownMultiSector" style="display: none;">
               <div class="multiselect-search-wrapper">
@@ -1485,6 +1536,7 @@ tr:hover td {
           <div class="kpi-card hires">
             <div class="kpi-label">Filtered New Hires</div>
             <div class="kpi-value" id="kpiFilteredHires">0</div>
+            <div id="kpiFilteredHiresSub" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; display: none;">0 from TBH</div>
           </div>
           <div class="kpi-card terms">
             <div class="kpi-label">Filtered Terminations</div>
@@ -1514,12 +1566,13 @@ tr:hover td {
 
 // Application State
 const state = {
-  files: { Prev: null, Curr: null },
-  fileHeaders: { Prev: [], Curr: [] },
-  fileData: { Prev: [], Curr: [] },
+  files: { Prev: null, Curr: null, Tbh: null },
+  fileHeaders: { Prev: [], Curr: [], Tbh: [] },
+  fileData: { Prev: [], Curr: [], Tbh: [] },
   mappings: {
     Prev: { id: '', name: '', cc: '', sector: '', hc: '' },
-    Curr: { id: '', name: '', cc: '', sector: '', hc: '' }
+    Curr: { id: '', name: '', cc: '', sector: '', hc: '' },
+    Tbh: { tbhid: '', empid: '' }
   },
   reconciliationResults: [], // All processed records
   filteredResults: [],      // Records matching current filters
@@ -1550,6 +1603,7 @@ const REQUIRED_FIELDS = ['id', 'cc', 'hc'];
 document.addEventListener('DOMContentLoaded', () => {
   setupDragAndDrop('Prev');
   setupDragAndDrop('Curr');
+  setupDragAndDrop('Tbh');
   loadMappingsFromStorage();
   
   // Close multiselect dropdowns when clicking outside
@@ -1605,7 +1659,11 @@ function setupDragAndDrop(type) {
 
 function handleFileSelect(file, type) {
   state.files[type] = file;
-  showLoading(true, `Reading ${type === 'Prev' ? 'Previous' : 'Current'} Period file...`);
+  let labelText = '';
+  if (type === 'Prev') labelText = 'Previous Period';
+  else if (type === 'Curr') labelText = 'Current Period';
+  else if (type === 'Tbh') labelText = 'TBH Mapping';
+  showLoading(true, `Reading ${labelText} file...`);
 
   const reader = new FileReader();
   
@@ -1698,6 +1756,16 @@ function goToMapping() {
   populateMappingSelects('Prev');
   populateMappingSelects('Curr');
 
+  // Handle optional TBH file mapping card visibility and populating selects
+  const tbhCard = document.getElementById('mappingCardTbh');
+  if (state.files.Tbh) {
+    document.getElementById('lblTbhFile').textContent = state.files.Tbh.name;
+    populateMappingSelects('Tbh');
+    tbhCard.style.display = 'block';
+  } else {
+    tbhCard.style.display = 'none';
+  }
+
   navigateToStep(2);
 }
 
@@ -1706,6 +1774,34 @@ function goToMapping() {
 
 function populateMappingSelects(type) {
   const headers = state.fileHeaders[type];
+
+  if (type === 'Tbh') {
+    const fields = ['TbhId', 'EmpId'];
+    fields.forEach(field => {
+      const select = document.getElementById(`mapTbh${field}`);
+      select.innerHTML = '';
+      
+      headers.forEach(header => {
+        const opt = document.createElement('option');
+        opt.value = header;
+        opt.textContent = header;
+        select.appendChild(opt);
+      });
+
+      // Try auto-detecting column
+      const detected = autoDetectTbhColumn(field.toLowerCase(), headers);
+      if (detected) {
+        select.value = detected;
+      } else if (state.mappings.Tbh && state.mappings.Tbh[field.toLowerCase()]) {
+        if (headers.includes(state.mappings.Tbh[field.toLowerCase()])) {
+          select.value = state.mappings.Tbh[field.toLowerCase()];
+        }
+      }
+    });
+    return;
+  }
+
+  const headers_for_fields = state.fileHeaders[type]; // Keep compatibility
   const fields = ['Id', 'Name', 'Cc', 'Sector', 'Hc'];
 
   fields.forEach(field => {
@@ -1720,7 +1816,7 @@ function populateMappingSelects(type) {
       select.appendChild(opt);
     }
 
-    headers.forEach(header => {
+    headers_for_fields.forEach(header => {
       const opt = document.createElement('option');
       opt.value = header;
       opt.textContent = header;
@@ -1728,12 +1824,12 @@ function populateMappingSelects(type) {
     });
 
     // Try auto-detecting column
-    const detected = autoDetectColumn(field.toLowerCase(), headers);
+    const detected = autoDetectColumn(field.toLowerCase(), headers_for_fields);
     if (detected) {
       select.value = detected;
     } else if (state.mappings[type][field.toLowerCase()]) {
       // Fallback to saved preference if available and still exists in headers
-      if (headers.includes(state.mappings[type][field.toLowerCase()])) {
+      if (headers_for_fields.includes(state.mappings[type][field.toLowerCase()])) {
         select.value = state.mappings[type][field.toLowerCase()];
       }
     }
@@ -1768,6 +1864,31 @@ function autoDetectColumn(field, headers) {
   return '';
 }
 
+function autoDetectTbhColumn(field, headers) {
+  const keywords = {
+    tbhid: ['tbh', 'tbh id', 'tbh_id', 'tbh number', 'tbh_number', 'tbh no', 'tbh_no', 'placeholder'],
+    empid: ['employee id', 'employee_id', 'empid', 'emp id', 'emp_id', 'employee code', 'employee number', 'emp no', 'id', 'emplid']
+  };
+
+  const matches = keywords[field];
+  
+  // 1. Exact case-insensitive match
+  for (let header of headers) {
+    const norm = header.toLowerCase().trim();
+    if (matches.includes(norm)) return header;
+  }
+
+  // 2. Partial match (contains keyword)
+  for (let header of headers) {
+    const norm = header.toLowerCase().trim();
+    for (let keyword of matches) {
+      if (norm.includes(keyword)) return header;
+    }
+  }
+
+  return '';
+}
+
 function saveMappingsToStorage() {
   const fields = ['id', 'name', 'cc', 'sector', 'hc'];
   ['Prev', 'Curr'].forEach(type => {
@@ -1776,6 +1897,18 @@ function saveMappingsToStorage() {
       state.mappings[type][field] = document.getElementById(selectId).value;
     });
   });
+  
+  if (!state.mappings.Tbh) {
+    state.mappings.Tbh = { tbhid: '', empid: '' };
+  }
+
+  const mapTbhTbhIdEl = document.getElementById('mapTbhTbhId');
+  const mapTbhEmpIdEl = document.getElementById('mapTbhEmpId');
+  if (mapTbhTbhIdEl && mapTbhEmpIdEl && mapTbhTbhIdEl.value) {
+    state.mappings.Tbh.tbhid = mapTbhTbhIdEl.value;
+    state.mappings.Tbh.empid = mapTbhEmpIdEl.value;
+  }
+  
   localStorage.setItem('recengine_mappings', JSON.stringify(state.mappings));
 }
 
@@ -1784,6 +1917,9 @@ function loadMappingsFromStorage() {
   if (saved) {
     try {
       state.mappings = JSON.parse(saved);
+      if (!state.mappings.Tbh) {
+        state.mappings.Tbh = { tbhid: '', empid: '' };
+      }
     } catch (e) {
       console.error("Error loading mappings from storage", e);
     }
@@ -1807,6 +1943,13 @@ function runReconciliation() {
       }
     });
   });
+
+  if (state.files.Tbh) {
+    if (!state.mappings.Tbh || !state.mappings.Tbh.tbhid || !state.mappings.Tbh.empid) {
+      showToast("Please map the columns for the TBH mapping file.", 'error');
+      valid = false;
+    }
+  }
 
   if (!valid) return;
 
@@ -1838,13 +1981,35 @@ function executeReconciliationLogic() {
   const prevMapping = state.mappings.Prev;
   const currMapping = state.mappings.Curr;
 
+  // Build TBH to Employee mapping lookup
+  const tbhToEmpMap = new Map();
+  if (state.files.Tbh && state.fileData.Tbh.length > 0) {
+    const tbhMapping = state.mappings.Tbh;
+    state.fileData.Tbh.forEach(row => {
+      const tbhId = String(row[tbhMapping.tbhid] || '').trim();
+      const empId = String(row[tbhMapping.empid] || '').trim();
+      if (tbhId && empId) {
+        tbhToEmpMap.set(tbhId, empId);
+      }
+    });
+  }
+
   // Helper to aggregate data by Employee ID (in case of duplicates)
   function aggregateData(data, mapping, targetMap) {
     data.forEach(row => {
       const rawId = row[mapping.id];
       if (rawId === undefined || rawId === null || rawId === '') return;
       
-      const id = String(rawId).trim();
+      let id = String(rawId).trim();
+      const originalId = id;
+      let wasTbh = false;
+
+      // Normalize if mapped
+      if (tbhToEmpMap.has(id)) {
+        id = tbhToEmpMap.get(id);
+        wasTbh = true;
+      }
+
       const name = mapping.name ? String(row[mapping.name] || '').trim() : '';
       const cc = String(row[mapping.cc] || 'Unknown').trim();
       const sector = mapping.sector ? String(row[mapping.sector] || 'Unknown').trim() : '-';
@@ -1854,8 +2019,12 @@ function executeReconciliationLogic() {
         // Aggregate headcount and keep first name/cc/sector
         const existing = targetMap.get(id);
         existing.hc += hc;
+        if (wasTbh) {
+          existing.wasTbh = true;
+          existing.tbhId = originalId;
+        }
       } else {
-        targetMap.set(id, { id, name, cc, sector, hc });
+        targetMap.set(id, { id, name, cc, sector, hc, wasTbh, tbhId: wasTbh ? originalId : null });
       }
     });
   }
@@ -1878,6 +2047,9 @@ function executeReconciliationLogic() {
     const prevHc1 = hasPrev && Math.abs(prevEmp.hc - 1) < 0.001;
     const currHc0 = !hasCurr || Math.abs(currEmp.hc) < 0.001;
 
+    const wasTbh = (prevEmp && prevEmp.wasTbh) || (currEmp && currEmp.wasTbh);
+    const tbhId = (prevEmp && prevEmp.tbhId) || (currEmp && currEmp.tbhId);
+
     // 1. Termination: Had factor 1 in previous month, and now has factor 0 (or doesn't exist) in current month
     if (prevHc1 && currHc0) {
       results.push({
@@ -1889,7 +2061,9 @@ function executeReconciliationLogic() {
         prevSector: prevEmp.sector,
         currSector: '-',
         prevHc: prevEmp.hc,
-        currHc: hasCurr ? currEmp.hc : 0
+        currHc: hasCurr ? currEmp.hc : 0,
+        wasTbh,
+        tbhId
       });
     }
     // 2. New Hire: Didn't exist in previous month, exists in current month (with headcount factor > 0)
@@ -1903,14 +2077,51 @@ function executeReconciliationLogic() {
         prevSector: '-',
         currSector: currEmp.sector,
         prevHc: 0,
-        currHc: currEmp.hc
+        currHc: currEmp.hc,
+        wasTbh,
+        tbhId
       });
     }
     // 3. Both exist and are active
     else if (hasPrev && hasCurr && prevEmp.hc > 0 && currEmp.hc > 0) {
-      // 2c: Transfers (had factor of 1 in one cc in prev, now has factor of 1 in a different cc)
-      if (prevEmp.hc === 1 && currEmp.hc === 1 && prevEmp.cc !== currEmp.cc) {
-        const isSectorChanged = prevEmp.sector !== currEmp.sector;
+      const isSectorChanged = prevEmp.sector !== currEmp.sector;
+
+      // Check if they are mapped from TBH
+      if (wasTbh) {
+        // If cost center changed
+        if (prevEmp.cc !== currEmp.cc) {
+          results.push({
+            id,
+            name,
+            type: isSectorChanged ? 'External Transfer' : 'Internal Transfer',
+            prevCc: prevEmp.cc,
+            currCc: currEmp.cc,
+            prevSector: prevEmp.sector,
+            currSector: currEmp.sector,
+            prevHc: prevEmp.hc,
+            currHc: currEmp.hc,
+            wasTbh,
+            tbhId
+          });
+        } else {
+          // No CC transfer -> classified as a TBH Onboarded movement
+          results.push({
+            id,
+            name,
+            type: 'TBH Onboarded',
+            prevCc: prevEmp.cc,
+            currCc: currEmp.cc,
+            prevSector: prevEmp.sector,
+            currSector: currEmp.sector,
+            prevHc: prevEmp.hc,
+            currHc: currEmp.hc,
+            wasTbh,
+            tbhId
+          });
+        }
+      }
+      // Standard employee transfers (had factor of 1 in one cc in prev, now has factor of 1 in a different cc)
+      else if (prevEmp.hc === 1 && currEmp.hc === 1 && prevEmp.cc !== currEmp.cc) {
         results.push({
           id,
           name,
@@ -1920,7 +2131,9 @@ function executeReconciliationLogic() {
           prevSector: prevEmp.sector,
           currSector: currEmp.sector,
           prevHc: prevEmp.hc,
-          currHc: currEmp.hc
+          currHc: currEmp.hc,
+          wasTbh,
+          tbhId
         });
       }
       // Other cases: No Change
@@ -1934,7 +2147,9 @@ function executeReconciliationLogic() {
           prevSector: prevEmp.sector,
           currSector: currEmp.sector,
           prevHc: prevEmp.hc,
-          currHc: currEmp.hc
+          currHc: currEmp.hc,
+          wasTbh,
+          tbhId
         });
       }
     }
@@ -1949,7 +2164,9 @@ function executeReconciliationLogic() {
         prevSector: hasPrev ? prevEmp.sector : '-',
         currSector: hasCurr ? currEmp.sector : '-',
         prevHc: hasPrev ? prevEmp.hc : 0,
-        currHc: hasCurr ? currEmp.hc : 0
+        currHc: hasCurr ? currEmp.hc : 0,
+        wasTbh,
+        tbhId
       });
     }
   });
@@ -1981,6 +2198,7 @@ function buildDashboard() {
   const termsCount = movements.filter(r => r.type === 'Termination').length;
   const internalCount = movements.filter(r => r.type === 'Internal Transfer').length;
   const externalCount = movements.filter(r => r.type === 'External Transfer').length;
+  const tbhCount = movements.filter(r => r.type === 'TBH Onboarded').length;
   const totalTransfers = internalCount + externalCount;
   const netChange = currTotalHc - prevTotalHc;
 
@@ -1997,6 +2215,17 @@ function buildDashboard() {
   const subtextEl = document.getElementById('kpiTransfersSub');
   if (subtextEl) {
     subtextEl.textContent = `${internalCount} Internal / ${externalCount} External`;
+  }
+
+  // Handle Hires TBH subtext
+  const hiresSub = document.getElementById('kpiHiresSub');
+  if (hiresSub) {
+    if (tbhCount > 0) {
+      hiresSub.style.display = 'block';
+      hiresSub.textContent = `${tbhCount} from TBH`;
+    } else {
+      hiresSub.style.display = 'none';
+    }
   }
 
   // Style the Net Change card based on value
@@ -2028,9 +2257,15 @@ function populateMultiselectOptions(type) {
   let items;
   if (type === 'Movement') {
     items = new Set(['New Hire', 'Termination', 'Internal Transfer', 'External Transfer', 'NO_CHANGE']);
+    if (state.files.Tbh) {
+      items.add('TBH Onboarded');
+    }
     state.availableItems[type] = items;
     // Default filters: select all except NO_CHANGE
     state.filters[type] = new Set(['New Hire', 'Termination', 'Internal Transfer', 'External Transfer']);
+    if (state.files.Tbh) {
+      state.filters[type].add('TBH Onboarded');
+    }
   } else {
     items = new Set();
     state.reconciliationResults.forEach(r => {
@@ -2091,11 +2326,9 @@ function updateMultiselectLabel(type) {
   
   if (type === 'Movement') {
     const hasNoChange = state.filters.Movement.has('NO_CHANGE');
-    const hasOthers = state.filters.Movement.has('New Hire') &&
-                      state.filters.Movement.has('Termination') &&
-                      state.filters.Movement.has('Internal Transfer') &&
-                      state.filters.Movement.has('External Transfer');
-                      
+    const nonNoChangeItems = Array.from(state.availableItems.Movement).filter(x => x !== 'NO_CHANGE');
+    const hasOthers = nonNoChangeItems.every(x => state.filters.Movement.has(x));
+                       
     if (selectedSize === 0) {
       labelSpan.textContent = 'No Movements';
     } else if (selectedSize === totalSize) {
@@ -2105,6 +2338,7 @@ function updateMultiselectLabel(type) {
     } else {
       const displayNames = Array.from(state.filters[type]).map(code => {
         if (code === 'NO_CHANGE') return 'No Change';
+        if (code === 'TBH Onboarded') return 'TBH Onboardings';
         return code + 's';
       });
       labelSpan.textContent = displayNames.join(', ');
@@ -2186,20 +2420,32 @@ function renderCharts(hires, terms, internalTransfers, externalTransfers) {
   if (state.charts.movementPie) state.charts.movementPie.destroy();
   if (state.charts.movementsBySector) state.charts.movementsBySector.destroy();
 
+  const tbhCount = state.filteredResults.filter(r => r.type === 'TBH Onboarded').length;
+
   // 1. Donut Chart (Movement Breakdown)
+  const pieLabels = ['New Hires', 'Terminations', 'Internal Transfers', 'External Transfers'];
+  const pieData = [hires, terms, internalTransfers, externalTransfers];
+  const pieColors = [
+    '#10b981', // Success (Green)
+    '#ef4444', // Danger (Red)
+    '#f59e0b', // Warning (Amber) - Internal
+    '#f97316'  // Orange - External
+  ];
+
+  if (state.files.Tbh) {
+    pieLabels.push('TBH Onboardings');
+    pieData.push(tbhCount);
+    pieColors.push('#8b5cf6'); // Purple
+  }
+
   const pieCtx = document.getElementById('chartMovementPie').getContext('2d');
   state.charts.movementPie = new Chart(pieCtx, {
     type: 'doughnut',
     data: {
-      labels: ['New Hires', 'Terminations', 'Internal Transfers', 'External Transfers'],
+      labels: pieLabels,
       datasets: [{
-        data: [hires, terms, internalTransfers, externalTransfers],
-        backgroundColor: [
-          '#10b981', // Success (Green)
-          '#ef4444', // Danger (Red)
-          '#f59e0b', // Warning (Amber) - Internal
-          '#f97316'  // Orange - External
-        ],
+        data: pieData,
+        backgroundColor: pieColors,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.08)'
       }]
@@ -2237,12 +2483,15 @@ function renderCharts(hires, terms, internalTransfers, externalTransfers) {
       unitsToTrack.push({ unit: r.prevSector, role: 'term', mType: r.type });
       unitsToTrack.push({ unit: r.currSector, role: 'hire', mType: r.type });
     }
+    if (r.type === 'TBH Onboarded') {
+      unitsToTrack.push({ unit: r.currSector, role: 'tbh', mType: r.type });
+    }
 
     unitsToTrack.forEach(({ unit, role, mType }) => {
       if (!unit || unit === '-') return; // Skip N/A or skip mapped fields
       
       if (!stats[unit]) {
-        stats[unit] = { hires: 0, terms: 0, internalTransfers: 0, externalTransfers: 0, total: 0 };
+        stats[unit] = { hires: 0, terms: 0, internalTransfers: 0, externalTransfers: 0, tbhOnboardings: 0, total: 0 };
       }
       
       if (mType === 'New Hire') {
@@ -2253,6 +2502,8 @@ function renderCharts(hires, terms, internalTransfers, externalTransfers) {
         stats[unit].internalTransfers++;
       } else if (mType === 'External Transfer') {
         stats[unit].externalTransfers++;
+      } else if (mType === 'TBH Onboarded') {
+        stats[unit].tbhOnboardings++;
       }
       stats[unit].total++;
     });
@@ -2268,38 +2519,50 @@ function renderCharts(hires, terms, internalTransfers, externalTransfers) {
   const termData = topUnits.map(item => item[1].terms);
   const internalData = topUnits.map(item => item[1].internalTransfers);
   const externalData = topUnits.map(item => item[1].externalTransfers);
+  const tbhData = topUnits.map(item => item[1].tbhOnboardings);
+
+  const barDatasets = [
+    {
+      label: 'New Hires',
+      data: hireData,
+      backgroundColor: '#10b981',
+      borderRadius: 4
+    },
+    {
+      label: 'Terminations',
+      data: termData,
+      backgroundColor: '#ef4444',
+      borderRadius: 4
+    },
+    {
+      label: 'Internal Transfers',
+      data: internalData,
+      backgroundColor: '#f59e0b',
+      borderRadius: 4
+    },
+    {
+      label: 'External Transfers',
+      data: externalData,
+      backgroundColor: '#f97316',
+      borderRadius: 4
+    }
+  ];
+
+  if (state.files.Tbh) {
+    barDatasets.push({
+      label: 'TBH Onboardings',
+      data: tbhData,
+      backgroundColor: '#8b5cf6',
+      borderRadius: 4
+    });
+  }
 
   const barCtx = document.getElementById('chartMovementsBySector').getContext('2d');
   state.charts.movementsBySector = new Chart(barCtx, {
     type: 'bar',
     data: {
       labels: labels,
-      datasets: [
-        {
-          label: 'New Hires',
-          data: hireData,
-          backgroundColor: '#10b981',
-          borderRadius: 4
-        },
-        {
-          label: 'Terminations',
-          data: termData,
-          backgroundColor: '#ef4444',
-          borderRadius: 4
-        },
-        {
-          label: 'Internal Transfers',
-          data: internalData,
-          backgroundColor: '#f59e0b',
-          borderRadius: 4
-        },
-        {
-          label: 'External Transfers',
-          data: externalData,
-          backgroundColor: '#f97316',
-          borderRadius: 4
-        }
-      ]
+      datasets: barDatasets
     },
     options: {
       responsive: true,
@@ -2448,6 +2711,18 @@ function updateFilteredSummary() {
     subtextEl.textContent = `${formatHc(internalTransfersHc)} Internal / ${formatHc(externalTransfersHc)} External`;
   }
 
+  // Handle Filtered Hires TBH subtext
+  const filteredTbhCount = state.filteredResults.filter(r => r.type === 'TBH Onboarded').length;
+  const fHiresSub = document.getElementById('kpiFilteredHiresSub');
+  if (fHiresSub) {
+    if (filteredTbhCount > 0) {
+      fHiresSub.style.display = 'block';
+      fHiresSub.textContent = `${filteredTbhCount} from TBH`;
+    } else {
+      fHiresSub.style.display = 'none';
+    }
+  }
+
   // Style the Net Change card based on value
   const netCardValue = document.getElementById('kpiFilteredNetChange');
   if (netCardValue) {
@@ -2490,11 +2765,13 @@ function renderTable() {
     if (r.type === 'Internal Transfer') badgeClass = 'badge-transfer';
     if (r.type === 'External Transfer') badgeClass = 'badge-external';
     if (r.type === 'NO_CHANGE') badgeClass = 'badge-secondary';
+    if (r.type === 'TBH Onboarded') badgeClass = 'badge-tbh';
 
     const displayType = r.type === 'NO_CHANGE' ? 'No Change' : r.type;
+    const displayId = r.wasTbh ? `${r.id} <span class="tbh-indicator" title="Onboarded from TBH: ${r.tbhId}">(${r.tbhId})</span>` : r.id;
 
     tr.innerHTML = `
-      <td>${r.id}</td>
+      <td>${displayId}</td>
       <td>${r.name || '<span style="color: var(--text-muted)">N/A</span>'}</td>
       <td><span class="badge ${badgeClass}">${displayType}</span></td>
       <td>${r.prevSector}</td>
@@ -2535,6 +2812,7 @@ function exportData(format) {
   // Format data for export (using requested column names)
   const exportRows = state.filteredResults.map(r => ({
     'Employee ID': r.id,
+    'TBH ID (Mapped)': r.wasTbh ? r.tbhId : '',
     'Employee Name': r.name,
     'Movement Type': r.type === 'NO_CHANGE' ? 'No Change' : r.type,
     'prev_period business sector': r.prevSector,
@@ -2572,6 +2850,7 @@ function exportData(format) {
     // Style column widths roughly
     worksheet['!cols'] = [
       { wch: 15 }, // ID
+      { wch: 15 }, // TBH ID (Mapped)
       { wch: 20 }, // Name
       { wch: 15 }, // Type
       { wch: 25 }, // Prev Sector
@@ -2640,6 +2919,7 @@ function showToast(message, type = 'info') {
 function resetApp() {
   removeFile('Prev');
   removeFile('Curr');
+  removeFile('Tbh');
   state.reconciliationResults = [];
   state.filteredResults = [];
   state.pagination.currentPage = 1;
@@ -2662,6 +2942,8 @@ function resetApp() {
   const labelCc = document.querySelector('#btnMultiCc .multiselect-label');
   const labelSector = document.querySelector('#btnMultiSector .multiselect-label');
   const labelMovement = document.querySelector('#btnMultiMovement .multiselect-label');
+  const labelTbh = document.getElementById('lblTbhFile');
+  const tbhCard = document.getElementById('mappingCardTbh');
   
   if (searchCc) searchCc.value = '';
   if (searchSector) searchSector.value = '';
@@ -2672,12 +2954,19 @@ function resetApp() {
   if (labelCc) labelCc.textContent = 'All Cost Centers';
   if (labelSector) labelSector.textContent = 'All Sectors';
   if (labelMovement) labelMovement.textContent = 'Special Movements';
+  if (labelTbh) labelTbh.textContent = '';
+  if (tbhCard) tbhCard.style.display = 'none';
+
+  // Reset main summary KPI subtexts
+  const hiresSub = document.getElementById('kpiHiresSub');
+  if (hiresSub) hiresSub.style.display = 'none';
 
   // Reset filtered summary KPI values
   const fPrev = document.getElementById('kpiFilteredPrevHc');
   const fCurr = document.getElementById('kpiFilteredCurrHc');
   const fNet = document.getElementById('kpiFilteredNetChange');
   const fHires = document.getElementById('kpiFilteredHires');
+  const fHiresSub = document.getElementById('kpiFilteredHiresSub');
   const fTerms = document.getElementById('kpiFilteredTerms');
   const fTransfers = document.getElementById('kpiFilteredTransfers');
   const fTransfersSub = document.getElementById('kpiFilteredTransfersSub');
@@ -2689,6 +2978,7 @@ function resetApp() {
     fNet.style.color = 'var(--text-primary)';
   }
   if (fHires) fHires.textContent = '0';
+  if (fHiresSub) fHiresSub.style.display = 'none';
   if (fTerms) fTerms.textContent = '0';
   if (fTransfers) fTransfers.textContent = '0';
   if (fTransfersSub) fTransfersSub.textContent = '0 Internal / 0 External';
@@ -2699,4 +2989,3 @@ function resetApp() {
 </script>
 </body>
 </html>
-
