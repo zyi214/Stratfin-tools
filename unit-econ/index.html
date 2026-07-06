@@ -1,0 +1,2590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unit Economics & Financial Analysis Tool</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            background: 'hsl(222, 28%, 9%)',
+            foreground: 'hsl(210, 20%, 88%)',
+            border: 'hsl(222, 20%, 18%)',
+            card: {
+              DEFAULT: 'hsl(222, 26%, 12%)',
+              border: 'hsl(222, 20%, 18%)'
+            },
+            sidebar: {
+              DEFAULT: 'hsl(222, 30%, 7%)',
+              foreground: 'hsl(210, 18%, 75%)',
+              border: 'hsl(222, 20%, 14%)',
+              accent: 'hsl(222, 26%, 15%)',
+              primary: 'hsl(210, 90%, 56%)'
+            },
+            primary: {
+              DEFAULT: 'hsl(210, 90%, 56%)',
+              foreground: '#ffffff'
+            },
+            muted: {
+              DEFAULT: 'hsl(222, 22%, 15%)',
+              foreground: 'hsl(210, 14%, 52%)'
+            },
+            accent: 'hsl(222, 26%, 18%)',
+            input: 'hsl(222, 20%, 20%)',
+            ring: 'hsl(210, 90%, 56%)'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- React 18 & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel Standalone (In-browser JSX compilation) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Recharts Dependencies & UMD Bundle -->
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+
+  <!-- XLSX SheetJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      background-color: hsl(222, 28%, 9%);
+      color: hsl(210, 20%, 88%);
+      font-family: 'Inter', sans-serif;
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: hsl(222, 30%, 7%);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: hsl(222, 20%, 20%);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: hsl(210, 90%, 56%, 0.5);
+    }
+    .stat-value {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="dark overflow-hidden">
+
+  <div id="root" class="h-screen w-screen"></div>
+
+  <!-- React Code with Babel -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
+    const { 
+      ResponsiveContainer, LineChart, Line, BarChart, Bar, 
+      XAxis, YAxis, Tooltip, Legend, ReferenceLine, 
+      AreaChart, Area, ReferenceDot, Cell 
+    } = window.Recharts;
+
+    const STORAGE_KEY = "unit-econ-facility";
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Financial Formulas & Core Calculations
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const defaultConfig = {
+      name: "Probe Rev A",
+      sellingPrice: 10000,
+      annualVolume: 1200,
+      granularity: "detailed",
+    };
+
+    const defaultInputs = {
+      materialsSimple: 450,
+      laborSimple: 150,
+      overheadSimple: 250,
+      materialsStandard: 450,
+      laborHoursStandard: 8.5,
+      laborRateStandard: 30,
+      overheadRateStandard: 120,
+      bomItems: [
+        { id: "u1", name: "Piezoelectric Transducer Array", quantity: 1, unitCost: 350 },
+        { id: "u2", name: "Custom Preamplifier PCB", quantity: 1, unitCost: 120 },
+        { id: "u3", name: "Shielded Coaxial Cable (256-core)", quantity: 1, unitCost: 180 },
+        { id: "u4", name: "Connector Assembly (256-pin)", quantity: 1, unitCost: 65 },
+        { id: "u5", name: "Ergonomic Housing Enclosure", quantity: 1, unitCost: 25 },
+        { id: "u6", name: "Acoustic Matching Layer", quantity: 1, unitCost: 45 },
+        { id: "u7", name: "Lens Assembly & Boot", quantity: 1, unitCost: 38 },
+        { id: "u8", name: "Thermally Conductive Backing", quantity: 1, unitCost: 12 },
+        { id: "u9", name: "Medical Grade Case", quantity: 1, unitCost: 20 },
+      ],
+      laborSteps: [
+        { id: "ul1", name: "Transducer Array Alignment", hours: 2.0, rate: 35 },
+        { id: "ul2", name: "Micro-Coaxial Cable Soldering", hours: 3.0, rate: 30 },
+        { id: "ul3", name: "Stack Lamination", hours: 1.5, rate: 28 },
+        { id: "ul4", name: "PCB Integration", hours: 1.0, rate: 25 },
+        { id: "ul5", name: "Acoustic QA & Calibration", hours: 1.5, rate: 40 },
+      ],
+      overheadMachineHours: 3.5,
+      overheadMachineRate: 45,
+      overheadFacilityAllocation: 120.0,
+      overheadUtilitiesPerUnit: 15.0,
+      toolingCost: 250000,
+      toolingAmortizationYears: 5,
+      toolingLifetimeUnits: 0,
+      yieldRate: 0.92,
+      scrapDisposalCostPerUnit: 15.0,
+      packagingCost: 18.0,
+      logisticsInbound: 12.0,
+      logisticsOutbound: 45.0,
+      warrantyProvisionPercent: 0.05,
+    };
+
+    function defaultFacilityInputs() {
+      return {
+        capEx: 500000,
+        usefulLifeYears: 7,
+        discountRatePct: 12,
+        salvageValue: 25000,
+        currentCapacity: 2000,
+        newCapacity: 4000,
+        targetUtilizationPct: 80,
+        asp: 10000,
+        variableCpuPerUnit: 1708,
+        currentFixedOverheadPerYear: 300000,
+        additionalAnnualOverhead: 80000,
+        currentVolume: 1200,
+      };
+    }
+
+    function calculateCosts(config, inputs) {
+      let materials = 0;
+      let labor = 0;
+      let overhead = 0;
+
+      if (config.granularity === "simple") {
+        materials = inputs.materialsSimple;
+        labor = inputs.laborSimple;
+        overhead = inputs.overheadSimple;
+      } else if (config.granularity === "standard") {
+        materials = inputs.materialsStandard;
+        labor = inputs.laborHoursStandard * inputs.laborRateStandard;
+        overhead = inputs.overheadRateStandard;
+      } else {
+        materials = inputs.bomItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0);
+        labor = inputs.laborSteps.reduce((sum, step) => sum + step.hours * step.rate, 0);
+        overhead = inputs.overheadMachineHours * inputs.overheadMachineRate +
+                   inputs.overheadFacilityAllocation +
+                   inputs.overheadUtilitiesPerUnit;
+      }
+
+      let tooling = 0;
+      let yieldLoss = 0;
+      let scrapDisposal = 0;
+      let packaging = 0;
+      let logistics = 0;
+      let warranty = 0;
+
+      if (config.granularity !== "simple") {
+        if (inputs.toolingAmortizationYears > 0 && config.annualVolume > 0) {
+          tooling = inputs.toolingCost / (inputs.toolingAmortizationYears * config.annualVolume);
+        } else if (inputs.toolingLifetimeUnits > 0) {
+          tooling = inputs.toolingCost / inputs.toolingLifetimeUnits;
+        }
+        const yieldMultiplier = inputs.yieldRate > 0 && inputs.yieldRate < 1 ? (1 / inputs.yieldRate) - 1 : 0;
+        yieldLoss = materials * yieldMultiplier;
+        scrapDisposal = inputs.scrapDisposalCostPerUnit * yieldMultiplier;
+        packaging = inputs.packagingCost;
+        logistics = inputs.logisticsInbound + inputs.logisticsOutbound;
+        warranty = config.sellingPrice * inputs.warrantyProvisionPercent;
+      }
+
+      const totalCost = materials + labor + overhead + tooling + yieldLoss + scrapDisposal + packaging + logistics + warranty;
+      const grossMargin = config.sellingPrice - totalCost;
+      const grossMarginPercent = config.sellingPrice > 0 ? grossMargin / config.sellingPrice : 0;
+
+      return {
+        materials, labor, overhead, tooling, yieldLoss, scrapDisposal, packaging, logistics, warranty,
+        totalCost, grossMargin, grossMarginPercent
+      };
+    }
+
+    function solveForVariable(config, inputs, variable, goal) {
+      const current = calculateCosts(config, inputs);
+      let targetCPU = 0;
+      if (goal.type === "target_cpu" && goal.targetCPU !== undefined) {
+        targetCPU = goal.targetCPU;
+      } else if (goal.type === "target_margin" && goal.targetMarginPercent !== undefined) {
+        targetCPU = config.sellingPrice * (1 - goal.targetMarginPercent / 100);
+      } else if (goal.type === "investment_payback" && goal.investmentAmount !== undefined) {
+        const annualVolume = config.annualVolume;
+        if (annualVolume <= 0) return null;
+        const paybackYears = goal.paybackYears ?? 3;
+        const requiredCostSavingPerUnit = goal.investmentAmount / (annualVolume * paybackYears);
+        targetCPU = current.totalCost - requiredCostSavingPerUnit;
+      }
+
+      const requiredReduction = current.totalCost - targetCPU;
+      let solvedValue = 0;
+      let currentValue = 0;
+      let feasible = true;
+      let message = "";
+
+      switch (variable) {
+        case "materialsSimple":
+          currentValue = inputs.materialsSimple;
+          solvedValue = inputs.materialsSimple - requiredReduction;
+          break;
+        case "laborSimple":
+          currentValue = inputs.laborSimple;
+          solvedValue = inputs.laborSimple - requiredReduction;
+          break;
+        case "overheadSimple":
+          currentValue = inputs.overheadSimple;
+          solvedValue = inputs.overheadSimple - requiredReduction;
+          break;
+        case "materialsStandard":
+          currentValue = inputs.materialsStandard;
+          solvedValue = inputs.materialsStandard - requiredReduction;
+          break;
+        case "laborHoursStandard":
+          currentValue = inputs.laborHoursStandard;
+          const currentLaborCost = inputs.laborHoursStandard * inputs.laborRateStandard;
+          solvedValue = inputs.laborRateStandard > 0 ? (currentLaborCost - requiredReduction) / inputs.laborRateStandard : 0;
+          break;
+        case "laborRateStandard":
+          currentValue = inputs.laborRateStandard;
+          const currentLaborCost2 = inputs.laborHoursStandard * inputs.laborRateStandard;
+          solvedValue = inputs.laborHoursStandard > 0 ? (currentLaborCost2 - requiredReduction) / inputs.laborHoursStandard : 0;
+          break;
+        case "overheadRateStandard":
+          currentValue = inputs.overheadRateStandard;
+          solvedValue = inputs.overheadRateStandard - requiredReduction;
+          break;
+        case "toolingCost":
+          currentValue = inputs.toolingCost;
+          const targetTooling = current.tooling - requiredReduction;
+          if (inputs.toolingAmortizationYears > 0 && config.annualVolume > 0) {
+            solvedValue = targetTooling * inputs.toolingAmortizationYears * config.annualVolume;
+          } else if (inputs.toolingLifetimeUnits > 0) {
+            solvedValue = targetTooling * inputs.toolingLifetimeUnits;
+          }
+          break;
+        case "annualVolume":
+          currentValue = config.annualVolume;
+          if (inputs.toolingAmortizationYears > 0 && inputs.toolingCost > 0) {
+            const toolingNeeded = current.tooling - requiredReduction;
+            if (toolingNeeded <= 0) {
+              solvedValue = Infinity;
+              feasible = false;
+              message = "Volume increase alone cannot achieve this target.";
+            } else {
+              solvedValue = inputs.toolingCost / (inputs.toolingAmortizationYears * toolingNeeded);
+            }
+          } else {
+            feasible = false;
+            message = "Volume only affects tooling. No tooling is configured.";
+            solvedValue = config.annualVolume;
+          }
+          break;
+        case "yieldRate":
+          currentValue = inputs.yieldRate * 100;
+          const targetYieldLoss = current.yieldLoss - requiredReduction;
+          if (current.materials > 0 && targetYieldLoss >= 0) {
+            solvedValue = (1 / (targetYieldLoss / current.materials + 1)) * 100;
+          } else {
+            solvedValue = 100;
+            feasible = false;
+            message = "Yield improvement alone cannot achieve this target.";
+          }
+          break;
+        case "packagingCost":
+          currentValue = inputs.packagingCost;
+          solvedValue = inputs.packagingCost - requiredReduction;
+          break;
+        case "logisticsInbound":
+          currentValue = inputs.logisticsInbound;
+          solvedValue = inputs.logisticsInbound - requiredReduction;
+          break;
+        case "logisticsOutbound":
+          currentValue = inputs.logisticsOutbound;
+          solvedValue = inputs.logisticsOutbound - requiredReduction;
+          break;
+        case "warrantyProvisionPercent":
+          currentValue = inputs.warrantyProvisionPercent * 100;
+          const targetWarranty = current.warranty - requiredReduction;
+          solvedValue = config.sellingPrice > 0 ? (targetWarranty / config.sellingPrice) * 100 : 0;
+          break;
+        case "sellingPrice":
+          currentValue = config.sellingPrice;
+          if (goal.type === "target_margin" && goal.targetMarginPercent !== undefined) {
+            const margin = goal.targetMarginPercent / 100;
+            solvedValue = margin < 1 ? current.totalCost / (1 - margin) : 0;
+          } else {
+            solvedValue = current.totalCost + (goal.targetCPU ? goal.targetCPU - current.totalCost : 0);
+          }
+          break;
+      }
+
+      if (solvedValue < 0) {
+        feasible = false;
+        message = "Required value is negative — target unachievable.";
+      }
+
+      const delta = solvedValue - currentValue;
+      const deltaPercent = currentValue !== 0 ? (delta / Math.abs(currentValue)) * 100 : 0;
+      if (!message && feasible) {
+        message = delta < 0 ? `Requires a ${Math.abs(deltaPercent).toFixed(1)}% reduction.` : `Requires a ${Math.abs(deltaPercent).toFixed(1)}% increase.`;
+      }
+
+      const res = { solvedValue, currentValue, delta, deltaPercent, feasible, message };
+      if (goal.type === "investment_payback" && goal.investmentAmount !== undefined) {
+        res.requiredCostSavingPerUnit = current.totalCost - targetCPU;
+        res.annualSavings = res.requiredCostSavingPerUnit * config.annualVolume;
+        res.paybackMonths = res.annualSavings > 0 ? (goal.investmentAmount / res.annualSavings) * 12 : Infinity;
+      }
+      return res;
+    }
+
+    function overrideVariable(config, inputs, variable, value) {
+      const nextConfig = { ...config };
+      const nextInputs = { ...inputs };
+      switch (variable) {
+        case "materialsSimple": nextInputs.materialsSimple = value; break;
+        case "laborSimple": nextInputs.laborSimple = value; break;
+        case "overheadSimple": nextInputs.overheadSimple = value; break;
+        case "materialsStandard": nextInputs.materialsStandard = value; break;
+        case "laborHoursStandard": nextInputs.laborHoursStandard = value; break;
+        case "laborRateStandard": nextInputs.laborRateStandard = value; break;
+        case "overheadRateStandard": nextInputs.overheadRateStandard = value; break;
+        case "toolingCost": nextInputs.toolingCost = value; break;
+        case "annualVolume": nextConfig.annualVolume = value; break;
+        case "yieldRate": nextInputs.yieldRate = value / 100; break;
+        case "packagingCost": nextInputs.packagingCost = value; break;
+        case "logisticsInbound": nextInputs.logisticsInbound = value; break;
+        case "logisticsOutbound": nextInputs.logisticsOutbound = value; break;
+        case "warrantyProvisionPercent": nextInputs.warrantyProvisionPercent = value / 100; break;
+        case "sellingPrice": nextConfig.sellingPrice = value; break;
+      }
+      return { config: nextConfig, inputs: nextInputs };
+    }
+
+    function makevsBuyAnalysis(buyConfig, buyInputs, makeConfig, makeInputs) {
+      const buyCPU = calculateCosts(buyConfig, buyInputs).totalCost;
+      const makeAtInfinity = calculateCosts({ ...makeConfig, annualVolume: 99999999 }, makeInputs).totalCost;
+      const makeFull = calculateCosts(makeConfig, makeInputs);
+      const crossoverVolume = buyCPU - makeAtInfinity > 0 ? Math.ceil(makeInputs.toolingCost / (makeInputs.toolingAmortizationYears * (buyCPU - makeAtInfinity))) : null;
+      const annualSavingsAtCurrentVolume = (buyCPU - makeFull.totalCost) * makeConfig.annualVolume;
+      const toolingPaybackMonths = annualSavingsAtCurrentVolume > 0 ? (makeInputs.toolingCost / annualSavingsAtCurrentVolume) * 12 : null;
+      
+      const curvePoints = [];
+      const refPoint = crossoverVolume ?? makeConfig.annualVolume;
+      const minV = Math.max(10, Math.round(refPoint * 0.2));
+      const maxV = Math.round(refPoint * 3);
+      const step = Math.ceil((maxV - minV) / 30);
+      for (let v = minV; v <= maxV; v += step) {
+        const mc = calculateCosts({ ...makeConfig, annualVolume: v }, makeInputs).totalCost;
+        curvePoints.push({ volume: v, makeCPU: mc, buyCPU });
+      }
+
+      return { crossoverVolume, buyCPU, makeCPUAtConfigVolume: makeFull.totalCost, annualSavingsAtCurrentVolume, toolingPaybackMonths, curvePoints };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Reusable Custom Icons component (Inline SVG paths)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const ICONS = {
+      dashboard: <path d="M3 12h18M3 6h18M3 18h18"/>,
+      settings: <g><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></g>,
+      calculator: <g><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="16"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="22" x2="16" y2="16"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></g>,
+      sliders: <g><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/></g>,
+      arrowLeftRight: <g><path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></g>,
+      building: <g><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22V12h6v10M8 6h.01M16 6h.01M8 10h.01M16 10h.01"/></g>,
+      layers: <g><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></g>,
+      trash: <g><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></g>,
+      plus: <g><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></g>,
+      upload: <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></g>,
+      download: <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></g>,
+      info: <g><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></g>,
+      target: <g><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></g>,
+      dices: <g><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/></g>,
+      play: <polygon points="5 3 19 12 5 21 5 3"/>,
+      rotate: <g><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></g>,
+      pencil: <g><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></g>,
+      check: <polyline points="20 6 9 17 4 12"/>,
+      close: <g><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></g>
+    };
+
+    function Icon({ name, className = "w-4 h-4" }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          {ICONS[name] || null}
+        </svg>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Utility formatting helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function formatNumber(v, decimals = 2) {
+      if (v === undefined || isNaN(v)) return "0.00";
+      return v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+
+    const fmt = formatNumber;
+
+    function fmtM(v) {
+      const abs = Math.abs(v);
+      const sign = v < 0 ? "-" : "";
+      if (abs >= 1000000) return `${sign}$${(abs / 1000000).toFixed(2)}M`;
+      if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}K`;
+      return `${sign}$${formatNumber(abs)}`;
+    }
+
+    function getFacilityInputs() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return { ...defaultFacilityInputs(), ...JSON.parse(saved) };
+      } catch (_) {
+        /* ignore */
+      }
+      return defaultFacilityInputs();
+    }
+
+    function calculateFacility(inp) {
+      const r = inp.discountRatePct / 100;
+      const targetVolume = inp.newCapacity * (inp.targetUtilizationPct / 100);
+      const incrementalVolume = Math.max(0, targetVolume - inp.currentVolume);
+      const CM = inp.asp - inp.variableCpuPerUnit;
+      const annualDepreciation = (inp.capEx - inp.salvageValue) / Math.max(1, inp.usefulLifeYears);
+
+      const annualCashFlow = incrementalVolume * CM - inp.additionalAnnualOverhead;
+      const cashFlows = [-inp.capEx];
+      for (let y = 1; y <= inp.usefulLifeYears; y++) {
+        cashFlows.push(annualCashFlow + (y === inp.usefulLifeYears ? inp.salvageValue : 0));
+      }
+
+      // NPV Calculation
+      const npv = cashFlows.reduce((sum, cf, t) => sum + cf / Math.pow(1 + r, t), 0);
+
+      // IRR solver
+      let irr = NaN;
+      let lo = -0.99, hi = 5.0;
+      for (let i = 0; i < 200; i++) {
+        const mid = (lo + hi) / 2;
+        const v = cashFlows.reduce((sum, cf, t) => sum + cf / Math.pow(1 + mid, t), 0);
+        if (Math.abs(v) < 0.01) { irr = mid; break; }
+        if (v > 0) lo = mid;
+        else hi = mid;
+      }
+
+      const paybackMonths = annualCashFlow > 0 ? (inp.capEx / annualCashFlow) * 12 : Infinity;
+      const capacityGainPct = inp.currentCapacity > 0 ? ((inp.newCapacity - inp.currentCapacity) / inp.currentCapacity) * 100 : 0;
+      const breakEvenIncrementalVolume = CM > 0 ? (inp.additionalAnnualOverhead + annualDepreciation) / CM : Infinity;
+      const breakEvenUtilizationPct = inp.newCapacity > 0 ? ((inp.currentVolume + breakEvenIncrementalVolume) / inp.newCapacity) * 100 : 100;
+
+      // curves
+      const cpuCurve = Array.from({ length: 25 }, (_, i) => {
+        const pct = 0.1 + (i / 24) * 0.9;
+        const volume = Math.round(inp.newCapacity * pct);
+        const before = volume <= inp.currentCapacity ? inp.variableCpuPerUnit + inp.currentFixedOverheadPerYear / volume : null;
+        const after = inp.variableCpuPerUnit + (inp.currentFixedOverheadPerYear + inp.additionalAnnualOverhead + annualDepreciation) / volume;
+        return { volume, before, after };
+      });
+
+      let cumCF = -inp.capEx;
+      let cumDisc = -inp.capEx;
+      const cashFlowByYear = [{ year: 0, incremental: -inp.capEx, cumulative: cumCF, npvCumulative: cumDisc }];
+      for (let y = 1; y <= inp.usefulLifeYears; y++) {
+        const cf = cashFlows[y];
+        cumCF += cf;
+        cumDisc += cf / Math.pow(1 + r, y);
+        cashFlowByYear.push({ year: y, incremental: cf, cumulative: cumCF, npvCumulative: cumDisc });
+      }
+
+      return {
+        targetVolume, incrementalVolume, contributionMarginPerUnit: CM, annualDepreciation,
+        paybackMonths, npv, irr, capacityGainPct, breakEvenUtilizationPct, cpuCurve, cashFlowByYear
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Main App & Sidebar Layout
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function App() {
+      const [scenarios, setScenarios] = useState(() => {
+        const defaultScenariosList = [
+          {
+            id: "base",
+            name: "Probe (Base)",
+            config: {
+              name: "Probe Rev A",
+              sellingPrice: 10000,
+              annualVolume: 1200,
+              granularity: "detailed",
+            },
+            inputs: {
+              ...defaultInputs,
+              materialsSimple: 450,
+              laborSimple: 150,
+              overheadSimple: 250,
+              materialsStandard: 450,
+              laborHoursStandard: 8.5,
+              laborRateStandard: 30,
+              overheadRateStandard: 120,
+              bomItems: [
+                { id: "u1", name: "Piezoelectric Transducer Array", quantity: 1, unitCost: 350 },
+                { id: "u2", name: "Custom Preamplifier PCB", quantity: 1, unitCost: 120 },
+                { id: "u3", name: "Shielded Coaxial Cable (256-core)", quantity: 1, unitCost: 180 },
+                { id: "u4", name: "Connector Assembly (256-pin)", quantity: 1, unitCost: 65 },
+                { id: "u5", name: "Ergonomic Housing Enclosure", quantity: 1, unitCost: 25 },
+                { id: "u6", name: "Acoustic Matching Layer", quantity: 1, unitCost: 45 },
+                { id: "u7", name: "Lens Assembly & Boot", quantity: 1, unitCost: 38 },
+                { id: "u8", name: "Thermally Conductive Backing", quantity: 1, unitCost: 12 },
+                { id: "u9", name: "Medical Grade Case", quantity: 1, unitCost: 20 },
+              ],
+              laborSteps: [
+                { id: "ul1", name: "Transducer Array Alignment", hours: 2.0, rate: 35 },
+                { id: "ul2", name: "Micro-Coaxial Cable Soldering", hours: 3.0, rate: 30 },
+                { id: "ul3", name: "Stack Lamination", hours: 1.5, rate: 28 },
+                { id: "ul4", name: "PCB Integration", hours: 1.0, rate: 25 },
+                { id: "ul5", name: "Acoustic QA & Calibration", hours: 1.5, rate: 40 },
+              ],
+              overheadMachineHours: 3.5,
+              overheadMachineRate: 45,
+              overheadFacilityAllocation: 120.0,
+              overheadUtilitiesPerUnit: 15.0,
+              toolingCost: 250000,
+              toolingAmortizationYears: 5,
+              toolingLifetimeUnits: 0,
+              yieldRate: 0.92,
+              scrapDisposalCostPerUnit: 15.0,
+              packagingCost: 18.0,
+              logisticsInbound: 12.0,
+              logisticsOutbound: 45.0,
+              warrantyProvisionPercent: 0.05,
+            },
+            isBaseCase: true,
+          },
+          {
+            id: "ultrasound_probe_buy",
+            name: "Probe (Buy)",
+            config: {
+              name: "Probe (Outsourced)",
+              sellingPrice: 10000,
+              annualVolume: 1200,
+              granularity: "standard",
+            },
+            inputs: {
+              ...defaultInputs,
+              materialsSimple: 1950,
+              laborSimple: 0,
+              overheadSimple: 50,
+              materialsStandard: 1950,
+              laborHoursStandard: 0,
+              laborRateStandard: 0,
+              overheadRateStandard: 50,
+              toolingCost: 0,
+              toolingAmortizationYears: 0,
+              toolingLifetimeUnits: 0,
+              yieldRate: 1.0,
+              scrapDisposalCostPerUnit: 0,
+              packagingCost: 18.0,
+              logisticsInbound: 35.0,
+              logisticsOutbound: 45.0,
+              warrantyProvisionPercent: 0.02,
+            },
+            isBaseCase: false,
+          }
+        ];
+
+        try {
+          const saved = localStorage.getItem("unit-econ-scenarios");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const base = parsed.find(s => s.id === "base");
+            if (base) {
+              base.name = "Probe (Base)";
+              if (base.config.name && base.config.name.startsWith("Ultrasound ")) {
+                base.config.name = base.config.name.replace("Ultrasound ", "");
+              }
+              if (base.config.sellingPrice !== 10000) {
+                base.config = { ...defaultScenariosList[0].config };
+                base.inputs = { ...defaultScenariosList[0].inputs };
+              }
+            }
+            const oldUpIdx = parsed.findIndex(s => s.id === "ultrasound_probe");
+            if (oldUpIdx !== -1) {
+              parsed.splice(oldUpIdx, 1);
+            }
+            const buy = parsed.find(s => s.id === "ultrasound_probe_buy");
+            if (buy) {
+              buy.name = "Probe (Buy)";
+              if (buy.config.name && buy.config.name.startsWith("Ultrasound ")) {
+                buy.config.name = buy.config.name.replace("Ultrasound ", "");
+              }
+              buy.config.sellingPrice = 10000;
+            } else {
+              parsed.push(defaultScenariosList[1]);
+            }
+            return parsed;
+          }
+        } catch (_) {}
+        return defaultScenariosList;
+      });
+
+      const [activeScenarioId, setActiveScenarioId] = useState("base");
+      const [page, setPage] = useState("dashboard"); // Pages: dashboard, setup, calculator, solver, scenarios, make-vs-buy, facility
+
+      useEffect(() => {
+        localStorage.setItem("unit-econ-scenarios", JSON.stringify(scenarios));
+      }, [scenarios]);
+
+      const activeScenario = useMemo(() => {
+        return scenarios.find(s => s.id === activeScenarioId) || scenarios[0];
+      }, [scenarios, activeScenarioId]);
+
+      const updateActiveScenario = (updates) => {
+        setScenarios(prev => prev.map(s => s.id === activeScenarioId ? { ...s, ...updates } : s));
+      };
+
+      const addScenario = (newScenario) => {
+        const id = "scenario_" + Date.now();
+        setScenarios(prev => [...prev, { ...newScenario, id }]);
+        setActiveScenarioId(id);
+        return id;
+      };
+
+      const deleteScenario = (id) => {
+        if (scenarios.find(s => s.id === id)?.isBaseCase) return;
+        setScenarios(prev => prev.filter(s => s.id !== id));
+        if (activeScenarioId === id) {
+          setActiveScenarioId(scenarios.find(s => s.isBaseCase)?.id || "base");
+        }
+      };
+
+      const importScenarios = (data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setScenarios(data);
+          setActiveScenarioId(data[0].id);
+        }
+      };
+
+      const importFromCSV = (csvText) => {
+        try {
+          const workbook = XLSX.read(csvText, { type: "string" });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(worksheet);
+
+          if (!Array.isArray(json) || json.length === 0) {
+            alert("Empty or invalid CSV file");
+            return;
+          }
+
+          const imported = json.map((row, idx) => {
+            let bomItems = [];
+            try {
+              if (row.bomItems) bomItems = JSON.parse(row.bomItems);
+            } catch (_) {}
+
+            let laborSteps = [];
+            try {
+              if (row.laborSteps) laborSteps = JSON.parse(row.laborSteps);
+            } catch (_) {}
+
+            return {
+              id: "scenario_" + Date.now() + "_" + idx,
+              name: row["Scenario Name"] || `Imported Scenario ${idx + 1}`,
+              isBaseCase: idx === 0 && row["Is Base Case"] === "true",
+              config: {
+                name: row["Product Name"] || defaultConfig.name,
+                sellingPrice: parseFloat(row["ASP"]) || defaultConfig.sellingPrice,
+                annualVolume: parseInt(row["Volume"]) || defaultConfig.annualVolume,
+                granularity: row["Granularity"] || defaultConfig.granularity
+              },
+              inputs: {
+                materialsSimple: parseFloat(row.materialsSimple) || defaultInputs.materialsSimple,
+                laborSimple: parseFloat(row.laborSimple) || defaultInputs.laborSimple,
+                overheadSimple: parseFloat(row.overheadSimple) || defaultInputs.overheadSimple,
+                materialsStandard: parseFloat(row.materialsStandard) || defaultInputs.materialsStandard,
+                laborHoursStandard: parseFloat(row.laborHoursStandard) || defaultInputs.laborHoursStandard,
+                laborRateStandard: parseFloat(row.laborRateStandard) || defaultInputs.laborRateStandard,
+                overheadRateStandard: parseFloat(row.overheadRateStandard) || defaultInputs.overheadRateStandard,
+                toolingCost: parseFloat(row.toolingCost) || defaultInputs.toolingCost,
+                toolingAmortizationYears: parseInt(row.toolingAmortizationYears) || defaultInputs.toolingAmortizationYears,
+                toolingLifetimeUnits: parseInt(row.toolingLifetimeUnits) || defaultInputs.toolingLifetimeUnits,
+                yieldRate: parseFloat(row.yieldRate) || defaultInputs.yieldRate,
+                scrapDisposalCostPerUnit: parseFloat(row.scrapDisposalCostPerUnit) || defaultInputs.scrapDisposalCostPerUnit,
+                packagingCost: parseFloat(row.packagingCost) || defaultInputs.packagingCost,
+                logisticsInbound: parseFloat(row.logisticsInbound) || defaultInputs.logisticsInbound,
+                logisticsOutbound: parseFloat(row.logisticsOutbound) || defaultInputs.logisticsOutbound,
+                warrantyProvisionPercent: parseFloat(row.warrantyProvisionPercent) || defaultInputs.warrantyProvisionPercent,
+                bomItems,
+                laborSteps
+              }
+            };
+          });
+
+          setScenarios(imported);
+          setActiveScenarioId(imported[0].id);
+        } catch (_) {
+          alert("Error parsing CSV data");
+        }
+      };
+
+      const exportAsJSON = () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(scenarios, null, 2));
+        const a = document.createElement("a");
+        a.setAttribute("href", dataStr);
+        a.setAttribute("download", "unit-econ-scenarios.json");
+        a.click();
+      };
+
+      const exportAsCSV = () => {
+        try {
+          const flatScenarios = scenarios.map(s => ({
+            "Scenario Name": s.name,
+            "Is Base Case": s.isBaseCase ? "true" : "false",
+            "Product Name": s.config.name,
+            "ASP": s.config.sellingPrice,
+            "Volume": s.config.annualVolume,
+            "Granularity": s.config.granularity,
+            
+            "materialsSimple": s.inputs.materialsSimple,
+            "laborSimple": s.inputs.laborSimple,
+            "overheadSimple": s.inputs.overheadSimple,
+            
+            "materialsStandard": s.inputs.materialsStandard,
+            "laborHoursStandard": s.inputs.laborHoursStandard,
+            "laborRateStandard": s.inputs.laborRateStandard,
+            "overheadRateStandard": s.inputs.overheadRateStandard,
+            
+            "toolingCost": s.inputs.toolingCost,
+            "toolingAmortizationYears": s.inputs.toolingAmortizationYears,
+            "toolingLifetimeUnits": s.inputs.toolingLifetimeUnits,
+            
+            "yieldRate": s.inputs.yieldRate,
+            "scrapDisposalCostPerUnit": s.inputs.scrapDisposalCostPerUnit,
+            "packagingCost": s.inputs.packagingCost,
+            "logisticsInbound": s.inputs.logisticsInbound,
+            "logisticsOutbound": s.inputs.logisticsOutbound,
+            "warrantyProvisionPercent": s.inputs.warrantyProvisionPercent,
+            
+            "bomItems": JSON.stringify(s.inputs.bomItems || []),
+            "laborSteps": JSON.stringify(s.inputs.laborSteps || [])
+          }));
+
+          const ws = XLSX.utils.json_to_sheet(flatScenarios);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Scenarios");
+          XLSX.writeFile(wb, "unit-econ-scenarios.csv");
+        } catch (_) {
+          alert("Error exporting CSV");
+        }
+      };
+
+      return (
+        <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+          {/* Sidebar */}
+          <div className="w-64 border-r border-border bg-sidebar flex flex-col shrink-0">
+            <div className="h-16 flex items-center px-6 border-b border-border gap-2 text-primary font-bold">
+              <Icon name="calculator" className="w-5 h-5" />
+              <span>Unit Econ Tool</span>
+            </div>
+
+            {/* Active Scenario Selector inside Sidebar */}
+            <div className="px-4 pt-3 border-b border-border/40 pb-3">
+              <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Editing Scenario</div>
+              <select 
+                value={activeScenarioId} 
+                onChange={(e) => setActiveScenarioId(e.target.value)}
+                className="w-full bg-input/40 border border-border rounded px-2.5 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring"
+              >
+                {scenarios.map(s => (
+                  <option key={s.id} value={s.id} className="bg-background text-foreground">{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Nav Menu */}
+            <div className="flex-1 py-4 px-3 space-y-1">
+              {[
+                { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+                { id: "setup", label: "Setup", icon: "settings" },
+                { id: "calculator", label: "Cost Model", icon: "calculator" },
+                { id: "solver", label: "Solver", icon: "sliders" },
+                { id: "scenarios", label: "Scenarios", icon: "layers" },
+                { id: "make-vs-buy", label: "Make vs. Buy", icon: "arrowLeftRight" },
+                { id: "facility", label: "Facility Investment", icon: "building" },
+              ].map(item => {
+                const isActive = page === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setPage(item.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-xs font-semibold text-left ${
+                      isActive 
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                    }`}
+                  >
+                    <Icon name={item.icon} className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+
+          </div>
+
+          {/* Main Workspace */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <main className="flex-1 overflow-y-auto p-6 bg-background">
+              <div className="max-w-6xl mx-auto">
+                {page === "dashboard" && <DashboardPage scenarios={scenarios} activeScenario={activeScenario} setPage={setPage} addScenario={addScenario} />}
+                {page === "setup" && <SetupPage activeScenario={activeScenario} updateActiveScenario={updateActiveScenario} setPage={setPage} />}
+                {page === "calculator" && (
+                  <CalculatorPage 
+                    activeScenario={activeScenario} 
+                    updateActiveScenario={updateActiveScenario} 
+                    addScenario={addScenario} 
+                    importScenarios={importScenarios}
+                    importFromCSV={importFromCSV}
+                    exportAsCSV={exportAsCSV}
+                    exportAsJSON={exportAsJSON}
+                  />
+                )}
+                {page === "solver" && <SolverPage activeScenario={activeScenario} />}
+                {page === "scenarios" && <ScenariosPage scenarios={scenarios} activeScenario={activeScenario} addScenario={addScenario} deleteScenario={deleteScenario} setActiveScenarioId={setActiveScenarioId} />}
+                {page === "make-vs-buy" && <MakeVsBuyPage scenarios={scenarios} addScenario={addScenario} setActiveScenarioId={setActiveScenarioId} />}
+                {page === "facility" && <FacilityPage activeScenario={activeScenario} />}
+              </div>
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Dashboard Component
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function DashboardPage({ scenarios, activeScenario, setPage, addScenario }) {
+      const activeBreakdown = useMemo(() => calculateCosts(activeScenario.config, activeScenario.inputs), [activeScenario]);
+
+      // Make vs Buy Summary
+      const makeVsBuySummary = useMemo(() => {
+        let buy = scenarios.find(s => s.name.toLowerCase().includes("buy") || s.name.toLowerCase().includes("outsource") || s.id === "ultrasound_probe_buy");
+        let make = scenarios.find(s => s.name.toLowerCase().includes("make") || s.name.toLowerCase().includes("base") || s.name.toLowerCase().includes("in-house") || s.id === "base");
+        if (!buy || !make) {
+          if (scenarios.length >= 2) {
+            buy = scenarios[0];
+            make = scenarios[1];
+          } else {
+            return null;
+          }
+        }
+        const analysis = makevsBuyAnalysis(buy.config, buy.inputs, make.config, make.inputs);
+        return {
+          buyName: buy.name,
+          makeName: make.name,
+          makeWins: analysis.annualSavingsAtCurrentVolume > 0,
+          annualSavings: Math.abs(analysis.annualSavingsAtCurrentVolume),
+          crossoverVolume: analysis.crossoverVolume,
+        };
+      }, [scenarios]);
+
+      // Facility summary
+      const facilitySummary = useMemo(() => {
+        const inputs = getFacilityInputs();
+        const results = calculateFacility(inputs);
+        return {
+          paybackMonths: results.paybackMonths,
+          npv: results.npv,
+          irr: results.irr,
+        };
+      }, []);
+
+      const chartData = [
+        { name: "Materials", value: activeBreakdown.materials, color: "hsl(210,90%,56%)" },
+        { name: "Labor", value: activeBreakdown.labor, color: "hsl(38,90%,52%)" },
+        { name: "Overhead", value: activeBreakdown.overhead, color: "hsl(142,70%,42%)" },
+        ...(activeScenario.config.granularity !== "simple"
+          ? [
+              { name: "Tooling", value: activeBreakdown.tooling, color: "hsl(262,52%,62%)" },
+              { name: "Yield Loss", value: activeBreakdown.yieldLoss + activeBreakdown.scrapDisposal, color: "hsl(4,78%,58%)" },
+              { name: "Logistics", value: activeBreakdown.logistics, color: "hsl(180,60%,45%)" },
+              { name: "Warranty", value: activeBreakdown.warranty, color: "hsl(300,50%,55%)" },
+            ]
+          : []),
+      ].filter(d => d.value > 0);
+
+      return (
+        <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Executive Dashboard</h1>
+              <p className="text-xs text-muted-foreground mt-1">
+                Overview of product economics for <span className="font-semibold text-primary">{activeScenario.config.name}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setPage("setup")} className="flex items-center gap-1.5 text-xs border border-border px-3 py-2 rounded text-muted-foreground hover:text-foreground hover:border-foreground transition-colors cursor-pointer">
+                <Icon name="settings" className="w-3.5 h-3.5" /> Configure Product
+              </button>
+              <button onClick={() => setPage("calculator")} className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-4 py-2 rounded hover:opacity-90 transition-opacity font-semibold cursor-pointer">
+                Edit Cost Model <Icon name="play" className="w-3 h-3 ml-1 fill-current" />
+              </button>
+            </div>
+          </div>
+
+          {/* Cards Row */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="bg-card border border-card-border rounded-lg p-5">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Cost Per Unit</div>
+              <div className="text-2xl font-bold text-foreground">${formatNumber(activeBreakdown.totalCost)}</div>
+              <div className="text-[10px] text-muted-foreground mt-2">Granularity: {activeScenario.config.granularity}</div>
+            </div>
+            <div className="bg-card border border-card-border rounded-lg p-5">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Gross Margin %</div>
+              <div className={`text-2xl font-bold ${activeBreakdown.grossMarginPercent >= 0.3 ? "text-green-400" : "text-yellow-400"}`}>
+                {(activeBreakdown.grossMarginPercent * 100).toFixed(1)}%
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-2">${formatNumber(activeBreakdown.grossMargin)} / unit</div>
+            </div>
+            <div className="bg-card border border-card-border rounded-lg p-5">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Annual Profit</div>
+              <div className="text-2xl font-bold text-green-400">
+                {activeBreakdown.grossMargin * activeScenario.config.annualVolume < 0 ? "-" : ""}${formatNumber(Math.abs(activeBreakdown.grossMargin * activeScenario.config.annualVolume))}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-2">ASP: ${formatNumber(activeScenario.config.sellingPrice)}</div>
+            </div>
+            <div className="bg-card border border-card-border rounded-lg p-5">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Annual Volume</div>
+              <div className="text-2xl font-bold text-foreground">{activeScenario.config.annualVolume.toLocaleString()}</div>
+              <div className="text-[10px] text-muted-foreground mt-2">Units produced / year</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-5 gap-6">
+            {/* Chart */}
+            <div className="col-span-3 bg-card border border-card-border rounded-lg p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Cost breakdown</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                    <YAxis width={40} tickFormatter={(v) => `$${v}`} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                    <Tooltip formatter={(v) => [`$${formatNumber(v)}`, "Cost"]} contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {chartData.map((d, idx) => (
+                        <Cell key={`bar-${idx}`} fill={d.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Strategic Summary */}
+            <div className="col-span-2 space-y-4">
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Icon name="arrowLeftRight" className="text-primary w-4 h-4" /> Make vs. Buy
+                  </span>
+                  <button onClick={() => setPage("make-vs-buy")} className="text-xs text-primary hover:underline">Compare</button>
+                </div>
+                {makeVsBuySummary ? (
+                  <div className="space-y-2 text-xs">
+                    <div className="text-foreground">Comparing: <span className="font-semibold text-yellow-400">{makeVsBuySummary.buyName}</span> vs <span className="font-semibold text-blue-400">{makeVsBuySummary.makeName}</span></div>
+                    <div className="flex justify-between border-t border-border/40 pt-2">
+                      <span className="text-muted-foreground">Cheaper Option</span>
+                      <span className="font-bold text-green-400">{makeVsBuySummary.makeWins ? "In-house (Make)" : "Outsourced (Buy)"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Annual Savings</span>
+                      <span className="font-bold text-foreground">{makeVsBuySummary.annualSavings < 0 ? "-" : ""}${formatNumber(Math.abs(makeVsBuySummary.annualSavings))}/yr</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">Create at least 2 scenarios to analyze outsourcing.</div>
+                )}
+              </div>
+
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Icon name="building" className="text-primary w-4 h-4" /> Facility Investment
+                  </span>
+                  <button onClick={() => setPage("facility")} className="text-xs text-primary hover:underline">Details</button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs text-center border-t border-border/40 pt-2">
+                  <div>
+                    <div className="text-muted-foreground mb-0.5">Payback</div>
+                    <div className="font-bold text-foreground">
+                      {isFinite(facilitySummary.paybackMonths) ? `${(facilitySummary.paybackMonths / 12).toFixed(1)} yrs` : "Never"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-0.5">NPV</div>
+                    <div className={`font-bold ${facilitySummary.npv >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      {facilitySummary.npv < 0 ? "-" : ""}${formatNumber(Math.abs(facilitySummary.npv))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-0.5">IRR</div>
+                    <div className="font-bold text-foreground">
+                      {isFinite(facilitySummary.irr) && !isNaN(facilitySummary.irr) ? `${(facilitySummary.irr * 100).toFixed(1)}%` : "N/A"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Tools */}
+          <div className="bg-card border border-card-border rounded-lg p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Analysis Solvers</h3>
+            <div className="grid grid-cols-3 gap-4 text-xs">
+              <div onClick={() => setPage("solver")} className="p-4 border border-border/60 hover:border-primary rounded-md cursor-pointer hover:bg-primary/5 transition-colors">
+                <div className="font-semibold text-foreground text-sm flex items-center gap-1.5"><Icon name="target" className="text-primary w-4 h-4" /> Breakeven Solver</div>
+                <div className="text-muted-foreground mt-1">Algebraically solve for variables to hit margin/payback goals.</div>
+              </div>
+              <div onClick={() => setPage("solver")} className="p-4 border border-border/60 hover:border-primary rounded-md cursor-pointer hover:bg-primary/5 transition-colors">
+                <div className="font-semibold text-foreground text-sm flex items-center gap-1.5"><Icon name="dices" className="text-primary w-4 h-4" /> Monte Carlo Risk</div>
+                <div className="text-muted-foreground mt-1">Run simulations to map probability distributions of costs.</div>
+              </div>
+              <div onClick={() => setPage("scenarios")} className="p-4 border border-border/60 hover:border-primary rounded-md cursor-pointer hover:bg-primary/5 transition-colors">
+                <div className="font-semibold text-foreground text-sm flex items-center gap-1.5"><Icon name="layers" className="text-primary w-4 h-4" /> Compare Scenarios</div>
+                <div className="text-muted-foreground mt-1">Compare up to 4 models side by side in a single table matrix.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Setup Component
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function SetupPage({ activeScenario, updateActiveScenario, setPage }) {
+      const [name, setName] = useState(activeScenario.config.name);
+      const [price, setPrice] = useState(activeScenario.config.sellingPrice);
+      const [volume, setVolume] = useState(activeScenario.config.annualVolume);
+      const [granularity, setGranularity] = useState(activeScenario.config.granularity);
+
+      const handleSave = () => {
+        updateActiveScenario({
+          config: {
+            name,
+            sellingPrice: parseFloat(price) || 0,
+            annualVolume: parseInt(volume) || 0,
+            granularity
+          }
+        });
+        setPage("calculator");
+      };
+
+      return (
+        <div className="max-w-2xl mx-auto space-y-6 animate-[fadeIn_0.2s_ease-out]">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Product Setup</h1>
+            <p className="text-xs text-muted-foreground mt-1">Configure your product constraints and choose granularity.</p>
+          </div>
+
+          <div className="bg-card border border-card-border rounded-lg p-6 space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Product Name</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Selling Price / Unit</label>
+                <div className="flex items-center border border-border rounded bg-input/20 focus-within:ring-1 focus-within:ring-ring overflow-hidden">
+                  <span className="px-3 py-2 text-xs text-muted-foreground bg-muted/40 border-r border-border">$</span>
+                  <input type="number" value={price} onChange={e => setPrice(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Annual Volume</label>
+                <div className="flex items-center border border-border rounded bg-input/20 focus-within:ring-1 focus-within:ring-ring overflow-hidden">
+                  <input type="number" value={volume} onChange={e => setVolume(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground outline-none text-right" />
+                  <span className="px-3 py-2 text-xs text-muted-foreground bg-muted/40 border-l border-border">units</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-card-border rounded-lg p-6">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Model Granularity</h2>
+            <div className="space-y-3">
+              {[
+                { value: "simple", label: "Simple (3 items)", desc: "Materials, Labor, Overhead — best for quick early estimates." },
+                { value: "standard", label: "Standard (7 items)", desc: "Adds Tooling, Yield/Scrap, Packaging, Logistics, and Warranty." },
+                { value: "detailed", label: "Detailed (Full BOM)", desc: "Build exact BOM lists, operation steps, and detailed machine runtimes." }
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setGranularity(opt.value)}
+                  className={`w-full text-left rounded-md border p-4 flex items-start gap-4 transition-colors ${
+                    granularity === opt.value ? "border-primary bg-primary/10" : "border-border bg-muted/20 hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex-1">
+                    <span className="text-sm font-bold text-foreground block">{opt.label}</span>
+                    <span className="text-xs text-muted-foreground mt-0.5 block">{opt.desc}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={handleSave} className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
+            Save & View Cost Model <Icon name="play" className="w-3.5 h-3.5 fill-current" />
+          </button>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cost Model (Calculator) Component
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function CalculatorPage({ 
+      activeScenario, updateActiveScenario, addScenario, 
+      importScenarios, importFromCSV, exportAsCSV, exportAsJSON 
+    }) {
+      const [exportOpen, setExportOpen] = useState(false);
+      const { config, inputs } = activeScenario;
+      const breakdown = calculateCosts(config, inputs);
+
+      const updateInputs = (updates) => {
+        updateActiveScenario({ inputs: { ...inputs, ...updates } });
+      };
+
+      const handleBomUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = ev.target.result;
+            const workbook = XLSX.read(data, { type: "binary" });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(worksheet);
+
+            if (!Array.isArray(json) || json.length === 0) {
+              alert("Empty sheet or invalid format");
+              return;
+            }
+
+            const importedItems = [];
+            json.forEach((row, idx) => {
+              let name = "";
+              let quantity = 1;
+              let unitCost = 0;
+
+              for (const key of Object.keys(row)) {
+                const k = key.toLowerCase().trim();
+                if (k.includes("name") || k.includes("part") || k.includes("component") || k.includes("description") || k === "item") {
+                  name = String(row[key]);
+                } else if (k.includes("qty") || k.includes("quantity") || k.includes("count")) {
+                  quantity = parseFloat(row[key]) || 1;
+                } else if (k.includes("cost") || k.includes("price") || k.includes("unitcost")) {
+                  unitCost = parseFloat(row[key]) || 0;
+                }
+              }
+
+              if (name) {
+                importedItems.push({ id: `imported_${Date.now()}_${idx}`, name, quantity, unitCost });
+              }
+            });
+
+            if (importedItems.length === 0) {
+              alert("Could not map columns. Verify headers: 'Part Name', 'Qty', 'Unit Cost'.");
+              return;
+            }
+
+            const overwrite = window.confirm(`Found ${importedItems.length} parts. Overwrite existing BOM?`);
+            if (overwrite) {
+              updateInputs({ bomItems: importedItems });
+            } else {
+              updateInputs({ bomItems: [...inputs.bomItems, ...importedItems] });
+            }
+          } catch (_) {
+            alert("Error parsing spreadsheet file");
+          }
+        };
+        reader.readAsBinaryString(file);
+        e.target.value = "";
+      };
+
+      const addBomItem = () => {
+        updateInputs({ bomItems: [...inputs.bomItems, { id: Date.now().toString(), name: "New Part", quantity: 1, unitCost: 0 }] });
+      };
+
+      const removeBomItem = (id) => {
+        updateInputs({ bomItems: inputs.bomItems.filter(i => i.id !== id) });
+      };
+
+      const updateBomItem = (id, fields) => {
+        updateInputs({ bomItems: inputs.bomItems.map(i => i.id === id ? { ...i, ...fields } : i) });
+      };
+
+      const addLaborStep = () => {
+        updateInputs({ laborSteps: [...inputs.laborSteps, { id: Date.now().toString(), name: "New Op", hours: 1, rate: 20 }] });
+      };
+
+      const removeLaborStep = (id) => {
+        updateInputs({ laborSteps: inputs.laborSteps.filter(s => s.id !== id) });
+      };
+
+      const updateLaborStep = (id, fields) => {
+        updateInputs({ laborSteps: inputs.laborSteps.map(s => s.id === id ? { ...s, ...fields } : s) });
+      };
+
+      const chartData = [
+        { name: "Materials", value: breakdown.materials, color: "hsl(210,90%,56%)" },
+        { name: "Labor", value: breakdown.labor, color: "hsl(38,90%,52%)" },
+        { name: "Overhead", value: breakdown.overhead, color: "hsl(142,70%,42%)" },
+        ...(config.granularity !== "simple"
+          ? [
+              { name: "Tooling", value: breakdown.tooling, color: "hsl(262,52%,62%)" },
+              { name: "Yield Loss", value: breakdown.yieldLoss + breakdown.scrapDisposal, color: "hsl(4,78%,58%)" },
+              { name: "Logistics", value: breakdown.logistics, color: "hsl(180,60%,45%)" },
+              { name: "Warranty", value: breakdown.warranty, color: "hsl(300,50%,55%)" },
+            ]
+          : []),
+      ].filter(d => d.value > 0);
+
+      return (
+        <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Cost Build-Up Model</h1>
+              <p className="text-xs text-muted-foreground mt-1">{config.name} · {config.granularity.toUpperCase()} Mode</p>
+            </div>
+            <div className="flex items-center gap-2 relative">
+              <label className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 rounded text-muted-foreground hover:text-foreground hover:border-foreground transition-colors cursor-pointer">
+                <Icon name="upload" className="w-3.5 h-3.5" /> Import Data
+                <input 
+                  type="file" 
+                  accept=".json,.csv" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      try {
+                        const text = ev.target.result;
+                        if (file.name.endsWith(".csv")) {
+                          importFromCSV(text);
+                        } else {
+                          importScenarios(JSON.parse(text));
+                        }
+                      } catch {
+                        alert("Invalid file format");
+                      }
+                    };
+                    reader.readAsText(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+
+              <div className="relative">
+                <button 
+                  onClick={() => setExportOpen(prev => !prev)} 
+                  className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 rounded text-muted-foreground hover:text-foreground hover:border-foreground transition-colors cursor-pointer"
+                >
+                  <Icon name="download" className="w-3.5 h-3.5" /> Export Data
+                </button>
+                {exportOpen && (
+                  <div className="absolute right-0 mt-1 w-44 bg-card border border-border rounded-md shadow-xl py-1 z-50 flex flex-col text-xs font-medium">
+                    <button 
+                      onClick={() => { exportAsCSV(); setExportOpen(false); }} 
+                      className="w-full text-left px-3 py-2 hover:bg-muted/40 text-foreground flex items-center gap-2 cursor-pointer"
+                    >
+                      <Icon name="download" className="w-3.5 h-3.5" /> Export as CSV (.csv)
+                    </button>
+                    <button 
+                      onClick={() => { exportAsJSON(); setExportOpen(false); }} 
+                      className="w-full text-left px-3 py-2 hover:bg-muted/40 text-foreground flex items-center gap-2 border-t border-border/40 cursor-pointer"
+                    >
+                      <Icon name="download" className="w-3.5 h-3.5" /> Export as JSON (.json)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => addScenario({ name: `${activeScenario.name} (Copy)`, config: { ...config }, inputs: { ...inputs } })}
+                className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-opacity font-semibold cursor-pointer"
+              >
+                Clone Scenario
+              </button>
+            </div>
+          </div>
+
+          {/* Cards */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-card border border-card-border rounded-lg p-4">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Cost Per Unit</div>
+              <div className="text-xl font-bold text-foreground">${formatNumber(breakdown.totalCost)}</div>
+            </div>
+            <div className="bg-card border border-card-border rounded-lg p-4">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Gross Margin</div>
+              <div className={`text-xl font-bold ${breakdown.grossMarginPercent >= 0.3 ? "text-green-400" : "text-yellow-400"}`}>
+                {(breakdown.grossMarginPercent * 100).toFixed(1)}% <span className="text-xs text-muted-foreground">(${formatNumber(breakdown.grossMargin)}/unit)</span>
+              </div>
+            </div>
+            <div className="bg-card border border-card-border rounded-lg p-4">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Annual Cost</div>
+              <div className="text-xl font-bold text-foreground">${formatNumber(breakdown.totalCost * config.annualVolume)}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-5 gap-6">
+            {/* Left Inputs */}
+            <div className="col-span-3 space-y-4">
+              
+              {/* Materials Card */}
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Materials</h3>
+                {config.granularity === "simple" && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-foreground">Materials Cost / Unit</span>
+                    <input type="number" value={inputs.materialsSimple} onChange={e => updateInputs({ materialsSimple: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring text-right w-24" />
+                  </div>
+                )}
+                {config.granularity === "standard" && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-foreground">Materials Cost / Unit</span>
+                    <input type="number" value={inputs.materialsStandard} onChange={e => updateInputs({ materialsStandard: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring text-right w-24" />
+                  </div>
+                )}
+                {config.granularity === "detailed" && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground uppercase tracking-wider px-1">
+                      <span className="col-span-6">Part Name</span>
+                      <span className="col-span-2 text-center">Qty</span>
+                      <span className="col-span-3 text-right">Unit Cost</span>
+                      <span className="col-span-1" />
+                    </div>
+                    {inputs.bomItems.map(item => (
+                      <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
+                        <input type="text" value={item.name} onChange={e => updateBomItem(item.id, { name: e.target.value })} className="col-span-6 bg-input/20 border border-border rounded px-2 py-1 text-xs outline-none" />
+                        <input type="number" value={item.quantity} onChange={e => updateBomItem(item.id, { quantity: parseFloat(e.target.value) || 0 })} className="col-span-2 bg-input/20 border border-border rounded px-2 py-1 text-xs outline-none text-center" />
+                        <input type="number" value={item.unitCost} onChange={e => updateBomItem(item.id, { unitCost: parseFloat(e.target.value) || 0 })} className="col-span-3 bg-input/20 border border-border rounded px-2 py-1 text-xs outline-none text-right" />
+                        <button onClick={() => removeBomItem(item.id)} className="col-span-1 text-muted-foreground hover:text-red-400 flex justify-center"><Icon name="trash" className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-3 pt-2">
+                      <button onClick={addBomItem} className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"><Icon name="plus" className="w-3.5 h-3.5" /> Add Item</button>
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer border border-border/60 hover:border-border px-2 py-0.5 rounded transition-colors">
+                        <Icon name="upload" className="w-3 h-3" /> Import Spreadsheet
+                        <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBomUpload} />
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Labor Card */}
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Labor</h3>
+                {config.granularity === "simple" && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-foreground">Labor Cost / Unit</span>
+                    <input type="number" value={inputs.laborSimple} onChange={e => updateInputs({ laborSimple: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring text-right w-24" />
+                  </div>
+                )}
+                {config.granularity === "standard" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-foreground">Labor Hours / Unit</span>
+                      <input type="number" value={inputs.laborHoursStandard} step="0.1" onChange={e => updateInputs({ laborHoursStandard: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-foreground">Labor Rate ($/hr)</span>
+                      <input type="number" value={inputs.laborRateStandard} onChange={e => updateInputs({ laborRateStandard: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                    </div>
+                  </div>
+                )}
+                {config.granularity === "detailed" && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground uppercase tracking-wider px-1">
+                      <span className="col-span-6">Operation</span>
+                      <span className="col-span-2 text-center">Hours</span>
+                      <span className="col-span-3 text-right">Rate/hr</span>
+                      <span className="col-span-1" />
+                    </div>
+                    {inputs.laborSteps.map(step => (
+                      <div key={step.id} className="grid grid-cols-12 gap-2 items-center">
+                        <input type="text" value={step.name} onChange={e => updateLaborStep(step.id, { name: e.target.value })} className="col-span-6 bg-input/20 border border-border rounded px-2 py-1 text-xs outline-none" />
+                        <input type="number" value={step.hours} step="0.1" onChange={e => updateLaborStep(step.id, { hours: parseFloat(e.target.value) || 0 })} className="col-span-2 bg-input/20 border border-border rounded px-2 py-1 text-xs outline-none text-center" />
+                        <input type="number" value={step.rate} onChange={e => updateLaborStep(step.id, { rate: parseFloat(e.target.value) || 0 })} className="col-span-3 bg-input/20 border border-border rounded px-2 py-1 text-xs outline-none text-right" />
+                        <button onClick={() => removeLaborStep(step.id)} className="col-span-1 text-muted-foreground hover:text-red-400 flex justify-center"><Icon name="trash" className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
+                    <button onClick={addLaborStep} className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"><Icon name="plus" className="w-3.5 h-3.5" /> Add Step</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced Drivers (Standard/Detailed only) */}
+              {config.granularity !== "simple" && (
+                <>
+                  {/* Overhead */}
+                  <div className="bg-card border border-card-border rounded-lg p-5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Overhead</h3>
+                    {config.granularity === "standard" ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">Overhead Burden / Unit</span>
+                        <input type="number" value={inputs.overheadRateStandard} onChange={e => updateInputs({ overheadRateStandard: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-foreground">Machine Runtime (hrs/unit)</span>
+                          <input type="number" value={inputs.overheadMachineHours} step="0.1" onChange={e => updateInputs({ overheadMachineHours: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-foreground">Machine Rate ($/hr)</span>
+                          <input type="number" value={inputs.overheadMachineRate} onChange={e => updateInputs({ overheadMachineRate: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-foreground">Facility Allocation / Unit</span>
+                          <input type="number" value={inputs.overheadFacilityAllocation} onChange={e => updateInputs({ overheadFacilityAllocation: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tooling / Capex */}
+                  <div className="bg-card border border-card-border rounded-lg p-5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Tooling Capex</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">Tooling Investment ($)</span>
+                        <input type="number" value={inputs.toolingCost} onChange={e => updateInputs({ toolingCost: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">Amortization (years)</span>
+                        <input type="number" value={inputs.toolingAmortizationYears} onChange={e => updateInputs({ toolingAmortizationYears: parseInt(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Yield / Freight */}
+                  <div className="bg-card border border-card-border rounded-lg p-5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Yield, Freight & Logistics</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">First-Pass Yield (%)</span>
+                        <input type="number" value={inputs.yieldRate * 100} onChange={e => updateInputs({ yieldRate: (parseFloat(e.target.value) || 0) / 100 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">Packaging Cost / Unit</span>
+                        <input type="number" value={inputs.packagingCost} onChange={e => updateInputs({ packagingCost: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">Outbound Logistics / Unit</span>
+                        <input type="number" value={inputs.logisticsOutbound} onChange={e => updateInputs({ logisticsOutbound: parseFloat(e.target.value) || 0 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">Warranty Provision (% of price)</span>
+                        <input type="number" value={inputs.warrantyProvisionPercent * 100} step="0.1" onChange={e => updateInputs({ warrantyProvisionPercent: (parseFloat(e.target.value) || 0) / 100 })} className="bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right w-24" />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Right Summary Grid */}
+            <div className="col-span-2">
+              <div className="bg-card border border-card-border rounded-lg p-5 sticky top-6 space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cost Build-Up Summary</h3>
+                <div className="space-y-2 text-xs">
+                  {chartData.map(item => (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span>{item.name}</span>
+                      </div>
+                      <span className="font-semibold text-foreground stat-value">${formatNumber(item.value)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-border/40 pt-3 flex justify-between font-bold text-sm text-primary">
+                    <span>Total Cost Per Unit</span>
+                    <span className="stat-value">${formatNumber(breakdown.totalCost)}</span>
+                  </div>
+                </div>
+
+                {chartData.length > 0 && (
+                  <div className="h-44 pt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} layout="vertical">
+                        <XAxis type="number" hide />
+                        <YAxis type="category" dataKey="name" width={65} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                          {chartData.map((d, idx) => (
+                            <Cell key={`summary-bar-${idx}`} fill={d.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Methodology Explanation */}
+            <div className="bg-card/40 border border-border/60 rounded-lg p-5 mt-6 flex gap-3 text-xs leading-relaxed col-span-5">
+              <div className="text-primary mt-0.5"><Icon name="info" className="w-4 h-4" /></div>
+              <div>
+                <h4 className="font-bold text-foreground mb-1">Methodology Overview: Cost Build-Up Model</h4>
+                <p className="text-muted-foreground">
+                  This page calculates the fully loaded unit cost of production. In <strong>Detailed Mode</strong>, materials are aggregated from the custom Bill of Materials (BOM), and labor is calculated from operational steps. Overhead includes machine rates and facility allocations. Tooling Capex is amortized over amortization years and volume: Tooling CPU = Tooling Investment / (Amortization Years * Volume). Yield loss and scrap disposal are computed using the multiplier (1 / Yield Rate) - 1, applying cost burden to the raw materials lost during manufacturing rejects.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Solver Component (3 Tabs: Breakeven, Monte Carlo, Sensitivity Matrix)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const SOLVE_VARIABLES = {
+      simple: ["materialsSimple", "laborSimple", "overheadSimple", "sellingPrice"],
+      standard: ["materialsStandard", "laborHoursStandard", "laborRateStandard", "overheadRateStandard", "toolingCost", "annualVolume", "yieldRate", "sellingPrice"],
+      detailed: ["laborHoursStandard", "laborRateStandard", "toolingCost", "annualVolume", "yieldRate", "sellingPrice"]
+    };
+
+    const SOLVE_VARIABLE_LABELS = {
+      materialsSimple: "Materials Cost / Unit",
+      laborSimple: "Labor Cost / Unit",
+      overheadSimple: "Overhead Cost / Unit",
+      materialsStandard: "Material Standard Cost",
+      laborHoursStandard: "Labor Hours / Unit",
+      laborRateStandard: "Labor Rate ($/hr)",
+      overheadRateStandard: "Overhead Burden Rate",
+      toolingCost: "Tooling Investment ($)",
+      annualVolume: "Annual Production Volume",
+      yieldRate: "First Pass Yield Rate (%)",
+      packagingCost: "Packaging cost / unit",
+      logisticsInbound: "Inbound logistics / unit",
+      logisticsOutbound: "Outbound logistics / unit",
+      warrantyProvisionPercent: "Warranty provision %",
+      sellingPrice: "Selling Price (ASP)"
+    };
+
+    function getCurrentValue(variable, config, inputs) {
+      switch (variable) {
+        case "materialsSimple": return inputs.materialsSimple;
+        case "laborSimple": return inputs.laborSimple;
+        case "overheadSimple": return inputs.overheadSimple;
+        case "materialsStandard": return inputs.materialsStandard;
+        case "laborHoursStandard": return inputs.laborHoursStandard;
+        case "laborRateStandard": return inputs.laborRateStandard;
+        case "overheadRateStandard": return inputs.overheadRateStandard;
+        case "toolingCost": return inputs.toolingCost;
+        case "annualVolume": return config.annualVolume;
+        case "yieldRate": return inputs.yieldRate * 100;
+        case "sellingPrice": return config.sellingPrice;
+        default: return 0;
+      }
+    }
+
+    function formatValue(variable, value) {
+      if (variable === "annualVolume") return `${Math.round(value).toLocaleString()} units`;
+      if (variable === "yieldRate") return `${value.toFixed(1)}%`;
+      if (variable === "toolingCost") return `$${formatNumber(value)}`;
+      if (variable === "laborHoursStandard") return `${value.toFixed(2)} hrs`;
+      return `$${formatNumber(value)}`;
+    }
+
+    function SolverPage({ activeScenario }) {
+      const [tab, setTab] = useState("breakeven"); // breakeven, montecarlo, sensitivity
+      const { config, inputs } = activeScenario;
+      const current = calculateCosts(config, inputs);
+
+      // Tab 1 (Breakeven) states
+      const [goalType, setGoalType] = useState("target_cpu");
+      const [targetCPU, setTargetCPU] = useState(current.totalCost * 0.9);
+      const [targetMargin, setTargetMargin] = useState(40);
+      const [investmentAmount, setInvestmentAmount] = useState(500000);
+      const [paybackYears, setPaybackYears] = useState(3);
+      const [selectedVar, setSelectedVar] = useState(SOLVE_VARIABLES[config.granularity][0]);
+
+      // Tab 2 (Monte Carlo) states
+      const [mcRuns, setMcRuns] = useState(5000);
+      const [mcTarget, setMcTarget] = useState(current.totalCost * 0.9);
+      const [runSim, setRunSim] = useState(false);
+      const [mcResult, setMcResult] = useState(null);
+
+      // Tab 3 (Sensitivity Grid) states
+      const [gridRowVar, setGridRowVar] = useState("sellingPrice");
+      const [gridColVar, setGridColVar] = useState(SOLVE_VARIABLES[config.granularity][0]);
+      const [gridMetric, setGridMetric] = useState("grossMarginPercent");
+      const [gridRangePct, setGridRangePct] = useState(20);
+
+      const availableVars = SOLVE_VARIABLES[config.granularity];
+
+      // Breakeven results
+      const breakevenGoal = {
+        type: goalType,
+        targetCPU: goalType === "target_cpu" ? parseFloat(targetCPU) || 0 : undefined,
+        targetMarginPercent: goalType === "target_margin" ? parseFloat(targetMargin) || 0 : undefined,
+        investmentAmount: goalType === "investment_payback" ? parseFloat(investmentAmount) || 0 : undefined,
+        paybackYears: goalType === "investment_payback" ? parseFloat(paybackYears) || 3 : undefined,
+      };
+      const breakevenResult = solveForVariable(config, inputs, selectedVar, breakevenGoal);
+
+      // Generate Volume Sensitivity
+      const sensitivityMultipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+      const sensitivityData = sensitivityMultipliers.map(mult => {
+        const testConfig = { ...config, annualVolume: Math.round(config.annualVolume * mult) };
+        const res = solveForVariable(testConfig, inputs, selectedVar, breakevenGoal);
+        return {
+          volume: `${(mult * 100).toFixed(0)}%`,
+          required: res?.feasible ? parseFloat(res.solvedValue.toFixed(4)) : null,
+          current: getCurrentValue(selectedVar, config, inputs)
+        };
+      });
+
+      // Monte Carlo Simulation Engine run
+      const executeMonteCarlo = () => {
+        setRunSim(true);
+        setTimeout(() => {
+          const runResults = [];
+          const marginResults = [];
+          for (let i = 0; i < mcRuns; i++) {
+            // Apply simple +-10% uniform variation to key drivers
+            const tempInputs = { ...inputs };
+            let tempASP = config.sellingPrice;
+
+            if (config.granularity === "simple") {
+              tempInputs.materialsSimple = inputs.materialsSimple * (1 + (Math.random() * 0.2 - 0.1));
+              tempInputs.laborSimple = inputs.laborSimple * (1 + (Math.random() * 0.16 - 0.08));
+            } else {
+              tempInputs.materialsStandard = inputs.materialsStandard * (1 + (Math.random() * 0.2 - 0.1));
+              tempInputs.laborHoursStandard = inputs.laborHoursStandard * (1 + (Math.random() * 0.2 - 0.08));
+              tempInputs.yieldRate = Math.min(1, Math.max(0.8, inputs.yieldRate * (1 + (Math.random() * 0.06 - 0.04))));
+            }
+
+            const bd = calculateCosts(config, tempInputs);
+            runResults.push(bd.totalCost);
+            marginResults.push(bd.grossMarginPercent);
+          }
+
+          runResults.sort((a, b) => a - b);
+          marginResults.sort((a, b) => a - b);
+
+          const sum = runResults.reduce((a, b) => a + b, 0);
+          const mean = sum / mcRuns;
+          const variance = runResults.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / mcRuns;
+          const stdDev = Math.sqrt(variance);
+
+          const p10 = runResults[Math.floor(mcRuns * 0.1)];
+          const p50 = runResults[Math.floor(mcRuns * 0.5)];
+          const p90 = runResults[Math.floor(mcRuns * 0.9)];
+
+          const belowTargetCount = runResults.filter(v => v <= mcTarget).length;
+          const prob = belowTargetCount / mcRuns;
+
+          // Histogram builder (20 bins)
+          const min = runResults[0];
+          const max = runResults[runResults.length - 1];
+          const binWidth = (max - min) / 20;
+          const bins = Array.from({ length: 20 }, (_, idx) => {
+            const low = min + idx * binWidth;
+            const high = low + binWidth;
+            const count = runResults.filter(v => v >= low && v < high).length;
+            return {
+              binMid: low + binWidth / 2,
+              pct: count / mcRuns,
+            };
+          });
+
+          setMcResult({
+            p10, p50, p90, mean, stdDev, prob, bins
+          });
+          setRunSim(false);
+        }, 50);
+      };
+
+      // 2D Sensitivity Grid generation
+      const gridBaseRowVal = getCurrentValue(gridRowVar, config, inputs);
+      const gridBaseColVal = getCurrentValue(gridColVar, config, inputs);
+      const gridSteps = [-3, -2, -1, 0, 1, 2, 3].map(s => (s * gridRangePct) / 3);
+
+      const gridData = useMemo(() => {
+        if (gridRowVar === gridColVar) return [];
+        return gridSteps.map(rPct => {
+          const rowVal = gridBaseRowVal * (1 + rPct / 100);
+          const cols = gridSteps.map(cPct => {
+            const colVal = gridBaseColVal * (1 + cPct / 100);
+            const step1 = overrideVariable(config, inputs, gridRowVar, rowVal);
+            const step2 = overrideVariable(step1.config, step1.inputs, gridColVar, colVal);
+            const bd = calculateCosts(step2.config, step2.inputs);
+
+            let value = 0;
+            if (gridMetric === "grossMarginPercent") value = bd.grossMarginPercent * 100;
+            else if (gridMetric === "grossMargin") value = bd.grossMargin;
+            else if (gridMetric === "totalCost") value = bd.totalCost;
+            else if (gridMetric === "annualProfit") value = bd.grossMargin * step2.config.annualVolume;
+
+            return { cPct, value };
+          });
+          return { rPct, rowVal, cols };
+        });
+      }, [gridRowVar, gridColVar, gridMetric, gridRangePct, gridBaseRowVal, gridBaseColVal, config, inputs]);
+
+      return (
+        <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Solver & Sensitivity Page</h1>
+              <p className="text-xs text-muted-foreground mt-1">Determine drivers, run probability risk runs, or solve 2D crossover margins.</p>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex border-b border-border">
+              {[
+                { id: "breakeven", label: "Breakeven Solver", icon: "target" },
+                { id: "montecarlo", label: "Monte Carlo Risk", icon: "dices" },
+                { id: "sensitivity", label: "2D Sensitivity Grid", icon: "layers" }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-xs transition-colors cursor-pointer -mb-px ${
+                    tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon name={t.icon} className="w-3.5 h-3.5" />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* TAB 1: Breakeven Solver */}
+          {tab === "breakeven" && (
+            <div className="grid grid-cols-5 gap-6">
+              {/* Left Config Panel */}
+              <div className="col-span-2 space-y-4">
+                <div className="bg-card border border-card-border rounded-lg p-5 space-y-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Goal</h3>
+                  <div className="space-y-2">
+                    {[
+                      { id: "target_cpu", label: "Target Cost Per Unit", desc: "Solve for driver to reach a specific overall CPU." },
+                      { id: "target_margin", label: "Target Gross Margin %", desc: "Solve for driver to hit a specific profit margin." },
+                      { id: "investment_payback", label: "Investment Payback", desc: "Evaluate required cost saving for an upfront Capex." }
+                    ].map(g => (
+                      <button
+                        key={g.id}
+                        onClick={() => setGoalType(g.id)}
+                        className={`w-full text-left rounded border p-3 transition-colors ${
+                          goalType === g.id ? "border-primary bg-primary/10" : "border-border hover:bg-muted/20"
+                        }`}
+                      >
+                        <div className="font-bold text-xs text-foreground">{g.label}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">{g.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-border/40 pt-4">
+                    {goalType === "target_cpu" && (
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Target CPU (Current: ${formatNumber(current.totalCost)})</label>
+                        <input type="number" value={targetCPU} onChange={e => setTargetCPU(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right font-mono" />
+                      </div>
+                    )}
+                    {goalType === "target_margin" && (
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Target Margin % (Current: {(current.grossMarginPercent * 100).toFixed(1)}%)</label>
+                        <input type="number" value={targetMargin} onChange={e => setTargetMargin(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right font-mono" />
+                      </div>
+                    )}
+                    {goalType === "investment_payback" && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Investment Amount ($)</label>
+                          <input type="number" value={investmentAmount} onChange={e => setInvestmentAmount(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right font-mono" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Target Payback period (years)</label>
+                          <input type="number" value={paybackYears} onChange={e => setPaybackYears(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right font-mono" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-card border border-card-border rounded-lg p-5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Variable to Solve</h3>
+                  <select value={selectedVar} onChange={e => setSelectedVar(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-ring">
+                    {availableVars.map(v => (
+                      <option key={v} value={v} className="bg-card text-foreground">{SOLVE_VARIABLE_LABELS[v]}</option>
+                    ))}
+                  </select>
+                  <div className="text-[10px] text-muted-foreground mt-2">Current Value: <span className="font-mono text-foreground">{formatValue(selectedVar, getCurrentValue(selectedVar, config, inputs))}</span></div>
+                </div>
+              </div>
+
+              {/* Right Result Panel */}
+              <div className="col-span-3 space-y-4">
+                {breakevenResult && (
+                  <>
+                    <div className={`rounded-lg border p-5 ${breakevenResult.feasible ? "border-primary bg-primary/5" : "border-red-400/30 bg-red-400/5"}`}>
+                      <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Required {SOLVE_VARIABLE_LABELS[selectedVar]}</h4>
+                      <div className="flex items-baseline gap-3">
+                        <span className="text-3xl font-extrabold text-primary">{breakevenResult.feasible ? formatValue(selectedVar, breakevenResult.solvedValue) : "Unachievable"}</span>
+                        {breakevenResult.feasible && (
+                          <span className={`text-xs font-bold ${breakevenResult.delta > 0 ? "text-green-400" : "text-red-400"}`}>
+                            {breakevenResult.delta < 0 ? "▼" : "▲"} {Math.abs(breakevenResult.deltaPercent).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">{breakevenResult.message}</p>
+                    </div>
+
+                    <div className="bg-card border border-card-border rounded-lg p-5">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Volume Sensitivity (1D sweep)</h3>
+                      <div className="h-44">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={sensitivityData}>
+                            <XAxis dataKey="volume" tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                            <YAxis tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                            <Tooltip contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                            <Line type="monotone" dataKey="required" stroke="hsl(210,90%,56%)" strokeWidth={2} name="Required" />
+                            <Line type="monotone" dataKey="current" stroke="hsl(38,90%,52%)" strokeDasharray="3 3" name="Current Base" />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: Monte Carlo Simulation */}
+          {tab === "montecarlo" && (
+            <div className="grid grid-cols-5 gap-6">
+              {/* Config Panel */}
+              <div className="col-span-2 space-y-4">
+                <div className="bg-card border border-card-border rounded-lg p-5 space-y-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Simulation Bounds</h3>
+                  <p className="text-[10px] text-muted-foreground">Randomly sweeps direct inputs by ±10% to generate probability distributions.</p>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1 font-semibold uppercase">Number of runs</label>
+                    <select value={mcRuns} onChange={e => setMcRuns(parseInt(e.target.value))} className="w-full bg-input/20 border border-border rounded px-3 py-2 text-xs outline-none">
+                      <option value="1000" className="bg-card">1,000 runs</option>
+                      <option value="5000" className="bg-card">5,000 runs</option>
+                      <option value="10000" className="bg-card">10,000 runs</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1 font-semibold uppercase">Target CPU Bound ($)</label>
+                    <input type="number" value={mcTarget} onChange={e => setMcTarget(parseFloat(e.target.value) || 0)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none text-right font-mono" />
+                  </div>
+                  <button
+                    onClick={executeMonteCarlo}
+                    disabled={runSim}
+                    className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2 rounded-md font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-40 cursor-pointer"
+                  >
+                    <Icon name="play" className="w-3.5 h-3.5 fill-current" />
+                    {runSim ? "Running..." : "Run Monte Carlo"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Output Panel */}
+              <div className="col-span-3 space-y-4">
+                {mcResult ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-card border border-card-border rounded-lg p-4">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Median CPU (P50)</div>
+                        <div className="text-lg font-bold text-primary">${formatNumber(mcResult.p50)}</div>
+                      </div>
+                      <div className="bg-card border border-card-border rounded-lg p-4">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Confidence (P90)</div>
+                        <div className="text-lg font-bold text-foreground">${formatNumber(mcResult.p90)}</div>
+                      </div>
+                      <div className="bg-card border border-card-border rounded-lg p-4">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Prob. of Target</div>
+                        <div className={`text-lg font-bold ${mcResult.prob >= 0.5 ? "text-green-400" : "text-yellow-400"}`}>
+                          {(mcResult.prob * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-card border border-card-border rounded-lg p-5">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">CPU Distribution</h3>
+                      <div className="h-44">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={mcResult.bins} barCategoryGap={1}>
+                            <XAxis dataKey="binMid" tickFormatter={v => `$${v.toFixed(0)}`} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                            <YAxis tickFormatter={v => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                            <Tooltip formatter={v => [`${(v * 100).toFixed(1)}%`, "Density"]} contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                            <Bar dataKey="pct" fill="hsl(210,90%,56%)" opacity={0.8} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="bg-card border border-card-border rounded-lg p-10 text-center text-xs text-muted-foreground flex flex-col items-center gap-3">
+                    <Icon name="dices" className="w-8 h-8 text-muted-foreground/30" />
+                    <span>Run simulation to display probability distributions and tails.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: 2D Sensitivity Matrix Grid */}
+          {tab === "sensitivity" && (
+            <div className="space-y-6">
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Matrix Drivers</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Row Driver (Y-Axis)</label>
+                    <select value={gridRowVar} onChange={e => setGridRowVar(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none">
+                      {availableVars.map(v => (
+                        <option key={`row-var-${v}`} value={v} className="bg-card text-foreground">{SOLVE_VARIABLE_LABELS[v]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Col Driver (X-Axis)</label>
+                    <select value={gridColVar} onChange={e => setGridColVar(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none">
+                      {availableVars.map(v => (
+                        <option key={`col-var-${v}`} value={v} className="bg-card text-foreground">{SOLVE_VARIABLE_LABELS[v]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Output Metric</label>
+                    <select value={gridMetric} onChange={e => setGridMetric(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none">
+                      <option value="grossMarginPercent" className="bg-card text-foreground">Gross Margin %</option>
+                      <option value="grossMargin" className="bg-card text-foreground">Gross Margin ($)</option>
+                      <option value="totalCost" className="bg-card text-foreground">Total Cost (CPU)</option>
+                      <option value="annualProfit" className="bg-card text-foreground">Annual Profit ($)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1 uppercase font-semibold">Step bounds (±%)</label>
+                    <select value={gridRangePct} onChange={e => setGridRangePct(parseInt(e.target.value) || 20)} className="w-full bg-input/20 border border-border rounded px-3 py-1.5 text-xs outline-none">
+                      <option value="10" className="bg-card">± 10%</option>
+                      <option value="20" className="bg-card">± 20%</option>
+                      <option value="30" className="bg-card">± 30%</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {gridRowVar !== gridColVar ? (
+                <div className="bg-card border border-card-border rounded-lg p-5 overflow-auto">
+                  <div className="min-w-[800px]">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Cross-Variable Heatmap Table</h3>
+                    <table className="w-full border-collapse text-center text-xs">
+                      <thead>
+                        <tr>
+                          <th className="bg-transparent border-0 w-40" />
+                          <th colSpan={7} className="text-xs font-bold text-primary pb-2 uppercase tracking-wider">{SOLVE_VARIABLE_LABELS[gridColVar]}</th>
+                        </tr>
+                        <tr className="border-b border-border bg-muted/10">
+                          <th className="text-left py-2 px-3 text-muted-foreground font-semibold">{SOLVE_VARIABLE_LABELS[gridRowVar]}</th>
+                          {gridSteps.map(cPct => (
+                            <th key={`grid-col-pct-${cPct}`} className="py-2 px-1 text-foreground font-semibold">
+                              <div>{cPct > 0 ? "+" : ""}{cPct.toFixed(1)}%</div>
+                              <div className="text-[10px] text-muted-foreground mt-0.5 font-normal">{formatValue(gridColVar, gridBaseColVal * (1 + cPct / 100))}</div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gridData.map(({ rPct, rowVal, cols }) => (
+                          <tr key={`grid-row-${rPct}`} className="border-b border-border/40 hover:bg-muted/5 transition-colors">
+                            <td className="text-left py-3 px-3 font-semibold text-foreground">
+                              <span className="text-muted-foreground w-12 inline-block">{rPct > 0 ? "+" : ""}{rPct.toFixed(1)}%</span>
+                              <span>{formatValue(gridRowVar, rowVal)}</span>
+                            </td>
+                            {cols.map(({ cPct, value }) => {
+                              const isCenter = Math.abs(rPct) < 0.01 && Math.abs(cPct) < 0.01;
+                              let bg = "transparent";
+
+                              // Coloring logic based on metric and value
+                              if (gridMetric === "totalCost") {
+                                const diffPct = ((value - current.totalCost) / current.totalCost) * 100;
+                                if (diffPct < -0.1) bg = `rgba(74, 222, 128, ${Math.min(0.8, Math.abs(diffPct) / 25)})`;
+                                else if (diffPct > 0.1) bg = `rgba(248, 113, 113, ${Math.min(0.8, diffPct / 25)})`;
+                              } else {
+                                let baseVal = current.grossMarginPercent * 100;
+                                if (gridMetric === "grossMargin") baseVal = current.grossMargin;
+                                else if (gridMetric === "annualProfit") baseVal = current.grossMargin * config.annualVolume;
+
+                                if (value < 0) bg = `rgba(248, 113, 113, ${0.3 + Math.min(0.6, Math.abs(value) / (baseVal || 100))})`;
+                                else {
+                                  const diffPct = ((value - baseVal) / (Math.abs(baseVal) || 1)) * 100;
+                                  if (diffPct > 0.1) bg = `rgba(74, 222, 128, ${Math.min(0.8, diffPct / 30)})`;
+                                  else if (diffPct < -0.1) bg = `rgba(248, 113, 113, ${Math.min(0.8, Math.abs(diffPct) / 30)})`;
+                                }
+                              }
+
+                              const cellDisplay = gridMetric === "grossMarginPercent" ? `${value.toFixed(1)}%` : gridMetric === "annualProfit" ? `$${formatNumber(value)}` : `$${formatNumber(value)}`;
+
+                              return (
+                                <td
+                                  key={`cell-${rPct}-${cPct}`}
+                                  style={{ backgroundColor: bg }}
+                                  className={`py-3 px-1 font-bold stat-value text-foreground/90 ${
+                                    isCenter ? "outline outline-2 outline-primary outline-offset-[-2px] bg-primary/10 shadow-lg font-extrabold" : ""
+                                  }`}
+                                >
+                                  {cellDisplay}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-card border border-card-border rounded-lg p-10 text-center text-xs text-muted-foreground">Select two different drivers to view the cross-variable matrix heatmap.</div>
+              )}
+            </div>
+          )}
+
+          {/* Methodology Explanation */}
+          <div className="bg-card/40 border border-border/60 rounded-lg p-5 mt-6 flex gap-3 text-xs leading-relaxed">
+            <div className="text-primary mt-0.5"><Icon name="info" className="w-4 h-4" /></div>
+            {tab === "breakeven" && (
+              <div>
+                <h4 className="font-bold text-foreground mb-1">Methodology: Breakeven Solver</h4>
+                <p className="text-muted-foreground">
+                  The solver uses algebraic goal-seeking. It establishes a target Cost Per Unit (CPU) based on your target (e.g. Target CPU directly, or derived from Target Margin as ASP * (1 - Margin % / 100)). For Capex Payback, it solves for the required unit savings needed to recoup the investment over the payback target: Target CPU = Current CPU - Investment / (Volume * Payback Years). It then sets the target cost equations equal to the cost build-up and back-calculates the required value for the selected driver.
+                </p>
+              </div>
+            )}
+            {tab === "montecarlo" && (
+              <div>
+                <h4 className="font-bold text-foreground mb-1">Methodology: Monte Carlo Risk Simulation</h4>
+                <p className="text-muted-foreground">
+                  This tool runs 5,000+ randomized trials (runs) of your unit cost model. During each run, direct variables (such as materials costs, labor hours, and yield rates) are randomly fluctuated within a uniform ±10% variation range. The results are aggregated, sorted, and bucketed into a histogram. <strong>P50 (Median)</strong> represents the 50% probability threshold, while <strong>P90</strong> represents the 90% confidence threshold (meaning costs will be at or below this value 90% of the time).
+                </p>
+              </div>
+            )}
+            {tab === "sensitivity" && (
+              <div>
+                <h4 className="font-bold text-foreground mb-1">Methodology: 2D Sensitivity Grid</h4>
+                <p className="text-muted-foreground">
+                  The sensitivity matrix sweeps two independent variables (Row and Column drivers) simultaneously through a range of ±% steps relative to their current baseline value. For each cell intersection, it recalculates the entire cost build-up and measures the selected output metric (such as Gross Margin % or total CPU). Better-than-baseline cells are highlighted in green, worse cells in red, and the center represents your current baseline model.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Scenarios Component
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function ScenariosPage({ scenarios, activeScenario, addScenario, deleteScenario, setActiveScenarioId }) {
+      const breakdowns = scenarios.map(s => ({
+        id: s.id,
+        name: s.name,
+        config: s.config,
+        breakdown: calculateCosts(s.config, s.inputs)
+      }));
+
+      const cpuChartData = [{
+        name: "CPU",
+        ...Object.fromEntries(breakdowns.map(b => [b.name, parseFloat(b.breakdown.totalCost.toFixed(2))]))
+      }];
+
+      const marginChartData = [{
+        name: "Margin %",
+        ...Object.fromEntries(breakdowns.map(b => [b.name, parseFloat((b.breakdown.grossMarginPercent * 100).toFixed(2))]))
+      }];
+
+      return (
+        <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Scenario Comparison</h1>
+              <p className="text-xs text-muted-foreground mt-1">Compare up to 4 costing scenarios side-by-side.</p>
+            </div>
+            {scenarios.length < 4 && (
+              <button
+                onClick={() => addScenario({ name: `Scenario ${scenarios.length + 1}`, config: { ...activeScenario.config }, inputs: { ...defaultInputs } })}
+                className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-opacity font-semibold cursor-pointer"
+              >
+                <Icon name="plus" className="w-3.5 h-3.5" /> Add Scenario
+              </button>
+            )}
+          </div>
+
+          {/* Cards */}
+          <div className="grid grid-cols-4 gap-4">
+            {scenarios.map(s => {
+              const bd = calculateCosts(s.config, s.inputs);
+              const isActive = s.id === activeScenario.id;
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => setActiveScenarioId(s.id)}
+                  className={`bg-card border rounded-lg p-4 cursor-pointer transition-all ${isActive ? "border-primary ring-1 ring-primary" : "border-card-border hover:border-border"}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-foreground truncate block max-w-[130px]">{s.name}</span>
+                    {!s.isBaseCase && (
+                      <button onClick={(e) => { e.stopPropagation(); deleteScenario(s.id); }} className="text-muted-foreground hover:text-red-400"><Icon name="trash" className="w-3.5 h-3.5" /></button>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-2 truncate">{s.config.name}</div>
+                  <div className="text-lg font-bold text-foreground">${formatNumber(bd.totalCost)}</div>
+                  <div className={`text-xs font-semibold ${bd.grossMarginPercent >= 0.3 ? "text-green-400" : "text-yellow-400"}`}>
+                    {(bd.grossMarginPercent * 100).toFixed(1)}% margin
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-card border border-card-border rounded-lg p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Cost Per Unit</h3>
+              <div className="h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={cpuChartData}>
+                    <XAxis dataKey="name" hide />
+                    <YAxis width={40} tickFormatter={v => `$${v}`} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                    <Tooltip formatter={v => [`$${formatNumber(v)}`]} contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    {scenarios.map((s, idx) => (
+                      <Bar key={s.id} dataKey={s.name} fill={["hsl(210,90%,56%)", "hsl(38,90%,52%)", "hsl(142,70%,42%)", "hsl(262,52%,62%)"][idx % 4]} radius={[3, 3, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="bg-card border border-card-border rounded-lg p-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Gross Margin %</h3>
+              <div className="h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={marginChartData}>
+                    <XAxis dataKey="name" hide />
+                    <YAxis width={40} tickFormatter={v => `${v}%`} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                    <Tooltip formatter={v => [`${v}%`]} contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    {scenarios.map((s, idx) => (
+                      <Bar key={s.id} dataKey={s.name} fill={["hsl(210,90%,56%)", "hsl(38,90%,52%)", "hsl(142,70%,42%)", "hsl(262,52%,62%)"][idx % 4]} radius={[3, 3, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Comparison Matrix Table */}
+          <div className="bg-card border border-card-border rounded-lg overflow-hidden">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="border-b border-border bg-muted/10">
+                  <th className="py-2.5 px-4 font-semibold text-muted-foreground uppercase tracking-wider w-40">Cost Line Item</th>
+                  {breakdowns.map(b => (
+                    <th key={`table-head-${b.id}`} className="py-2.5 px-4 font-semibold text-foreground text-right">{b.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { key: "materials", label: "Materials" },
+                  { key: "labor", label: "Labor" },
+                  { key: "overhead", label: "Overhead" },
+                  { key: "tooling", label: "Tooling" },
+                  { key: "yieldLoss", label: "Yield Loss" },
+                  { key: "packaging", label: "Packaging" },
+                  { key: "logistics", label: "Logistics" },
+                  { key: "warranty", label: "Warranty" },
+                  { key: "totalCost", label: "Total Cost (CPU)" },
+                  { key: "grossMarginPercent", label: "Gross Margin %" }
+                ].map(metric => (
+                  <tr key={`table-row-${metric.key}`} className="border-b border-border/40 hover:bg-muted/5 transition-colors">
+                    <td className="py-2.5 px-4 text-muted-foreground">{metric.label}</td>
+                    {breakdowns.map(b => {
+                      const v = b.breakdown[metric.key];
+                      const display = metric.key === "grossMarginPercent" ? `${(v * 100).toFixed(1)}%` : `$${formatNumber(v)}`;
+                      return (
+                        <td key={`table-val-${b.id}-${metric.key}`} className="py-2.5 px-4 text-right stat-value font-semibold text-foreground">
+                          {display}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Methodology Explanation */}
+          <div className="bg-card/40 border border-border/60 rounded-lg p-5 mt-6 flex gap-3 text-xs leading-relaxed">
+            <div className="text-primary mt-0.5"><Icon name="info" className="w-4 h-4" /></div>
+            <div>
+              <h4 className="font-bold text-foreground mb-1">Methodology: Scenario Comparison</h4>
+              <p className="text-muted-foreground">
+                This screen compiles all saved scenarios in your browser's local state and aligns their unit cost components side-by-side in a comparative matrix. This allows you to evaluate how shifting from simple to detailed granularity, changing vendors, or making operational adjustments impacts each cost line item (such as materials, labor, overhead, yield loss, and warranty) as well as the final gross margins.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Make vs Buy Component
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function MakeVsBuyPage({ scenarios, addScenario, setActiveScenarioId }) {
+      const defaultBuy = scenarios.find(s => s.id === "ultrasound_probe_buy") || scenarios[0];
+      const defaultMake = scenarios.find(s => s.id === "base") || scenarios[0];
+
+      const [buyId, setBuyId] = useState(defaultBuy?.id || null);
+      const [makeId, setMakeId] = useState(defaultMake?.id || null);
+
+      const buyScenario = scenarios.find(s => s.id === buyId);
+      const makeScenario = scenarios.find(s => s.id === makeId);
+
+      const analysis = useMemo(() => {
+        if (!buyScenario || !makeScenario) return null;
+        return makevsBuyAnalysis(buyScenario.config, buyScenario.inputs, makeScenario.config, makeScenario.inputs);
+      }, [buyScenario, makeScenario]);
+
+      const createDefaultScenario = (role) => {
+        const id = addScenario({
+          name: role === "buy" ? "Buy Scenario" : "Make Scenario",
+          config: { ...defaultConfig, granularity: "standard" },
+          inputs: { ...defaultInputs, toolingCost: role === "buy" ? 0 : 120000 }
+        });
+        if (role === "buy") setBuyId(id);
+        else setMakeId(id);
+      };
+
+      return (
+        <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Make vs. Buy Analysis</h1>
+            <p className="text-xs text-muted-foreground mt-1">Determine the crossover production volume at which insourcing becomes more cost-effective.</p>
+          </div>
+
+          <div className="flex gap-4">
+            {/* Make Picker */}
+            <div className="bg-card border border-card-border rounded-lg p-5 flex-1 space-y-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-blue-400 block">In-house (Make)</span>
+              <select value={makeId || ""} onChange={e => setMakeId(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-ring">
+                <option value="" disabled>-- Select Make scenario --</option>
+                {scenarios.map(s => <option key={`make-pick-${s.id}`} value={s.id} className="bg-card text-foreground">{s.name}</option>)}
+              </select>
+              {!makeId && <button onClick={() => createDefaultScenario("make")} className="text-xs text-primary hover:underline cursor-pointer block">+ Create Make Case</button>}
+            </div>
+
+            {/* Buy Picker */}
+            <div className="bg-card border border-card-border rounded-lg p-5 flex-1 space-y-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-yellow-400 block">Outsourced (Buy)</span>
+              <select value={buyId || ""} onChange={e => setBuyId(e.target.value)} className="w-full bg-input/20 border border-border rounded px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-ring">
+                <option value="" disabled>-- Select Buy scenario --</option>
+                {scenarios.map(s => <option key={`buy-pick-${s.id}`} value={s.id} className="bg-card text-foreground">{s.name}</option>)}
+              </select>
+              {!buyId && <button onClick={() => createDefaultScenario("buy")} className="text-xs text-primary hover:underline cursor-pointer block">+ Create Buy Case</button>}
+            </div>
+          </div>
+
+          {analysis && buyId !== makeId ? (
+            <>
+              {/* Verdict */}
+              <div className={`rounded-lg border p-4 flex items-center gap-3 ${analysis.annualSavingsAtCurrentVolume > 0 ? "border-blue-500/30 bg-blue-500/5" : "border-yellow-500/30 bg-yellow-500/5"}`}>
+                <Icon name="info" className={`w-5 h-5 ${analysis.annualSavingsAtCurrentVolume > 0 ? "text-blue-400" : "text-yellow-400"}`} />
+                <div className="text-xs text-muted-foreground leading-relaxed">
+                  {analysis.annualSavingsAtCurrentVolume > 0 ? (
+                    <span>Make (In-house) is cheaper at current volume. Saves <span className="text-foreground font-bold">${formatNumber(analysis.buyCPU - analysis.makeCPUAtConfigVolume)}/unit</span> ({analysis.annualSavingsAtCurrentVolume < 0 ? "-" : ""}${formatNumber(Math.abs(analysis.annualSavingsAtCurrentVolume))}/yr).</span>
+                  ) : (
+                    <span>Buy (Outsourced) is cheaper. Make is more expensive by <span className="text-foreground font-bold">${formatNumber(analysis.makeCPUAtConfigVolume - analysis.buyCPU)}/unit</span> due to tooling Capex.</span>
+                  )}
+                  {analysis.crossoverVolume && (
+                    <span className="block mt-0.5">Make becomes preferred at volumes above <span className="font-semibold text-primary">{analysis.crossoverVolume.toLocaleString()}</span> units/yr.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* KPIs */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-card border border-card-border rounded-lg p-5">
+                  <div className="text-xs text-muted-foreground uppercase mb-1">Crossover Volume</div>
+                  <div className="text-lg font-bold text-foreground">{analysis.crossoverVolume ? `${analysis.crossoverVolume.toLocaleString()} units` : "Never"}</div>
+                </div>
+                <div className="bg-card border border-card-border rounded-lg p-5">
+                  <div className="text-xs text-muted-foreground uppercase mb-1">Annual Impact</div>
+                  <div className={`text-lg font-bold ${analysis.annualSavingsAtCurrentVolume > 0 ? "text-green-400" : "text-yellow-400"}`}>
+                    {analysis.annualSavingsAtCurrentVolume < 0 ? "-" : ""}${formatNumber(Math.abs(analysis.annualSavingsAtCurrentVolume))}/yr
+                  </div>
+                </div>
+                <div className="bg-card border border-card-border rounded-lg p-5">
+                  <div className="text-xs text-muted-foreground uppercase mb-1">Tooling Payback</div>
+                  <div className="text-lg font-bold text-foreground">
+                    {analysis.toolingPaybackMonths ? `${analysis.toolingPaybackMonths.toFixed(1)} mo` : "N/A"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Curve Chart */}
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Unit Cost Absorption Curve</h3>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={analysis.curvePoints}>
+                      <XAxis dataKey="volume" tickFormatter={v => v.toLocaleString()} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                      <YAxis tickFormatter={v => `$${v}`} tick={{ fontSize: 10, fill: "hsl(210,14%,52%)" }} />
+                      <Tooltip contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                      <Line type="monotone" dataKey="makeCPU" stroke="hsl(210,90%,56%)" strokeWidth={2.5} name="Make (In-house)" />
+                      <Line type="monotone" dataKey="buyCPU" stroke="hsl(38,90%,52%)" strokeWidth={2.5} name="Buy (Outsource)" />
+                      {analysis.crossoverVolume && (
+                        <ReferenceLine x={analysis.crossoverVolume} stroke="hsl(142,70%,42%)" strokeDasharray="3 3" />
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="bg-card border border-card-border rounded-lg p-10 text-center text-xs text-muted-foreground">Select two different scenarios above to run Make vs. Buy comparison analysis.</div>
+          )}
+
+          {/* Methodology Explanation */}
+          <div className="bg-card/40 border border-border/60 rounded-lg p-5 mt-6 flex gap-3 text-xs leading-relaxed">
+            <div className="text-primary mt-0.5"><Icon name="info" className="w-4 h-4" /></div>
+            <div>
+              <h4 className="font-bold text-foreground mb-1">Methodology: Make vs. Buy Analysis</h4>
+              <p className="text-muted-foreground">
+                This analysis evaluates the financial trade-offs of in-house manufacturing (Make) versus outsourcing (Buy). In-house production typically requires an upfront fixed investment in tooling Capex, but delivers a lower variable cost per unit. Outsourcing has zero upfront tooling, but incurs a higher unit purchase price. The <strong>Crossover Volume</strong> is solved algebraically as: Crossover Volume = Make Tooling Investment / (Make Tooling Amortization Years * (Buy CPU - Make Variable CPU)). This represents the annual volume threshold above which the savings in variable unit costs justify the fixed tooling expenditure.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Facility Capital Budgeting Component
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function FacilityPage({ activeScenario }) {
+      const [inputs, setInputs] = useState(getFacilityInputs);
+
+      useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(inputs));
+      }, [inputs]);
+
+      const results = useMemo(() => calculateFacility(inputs), [inputs]);
+
+      const set = (key, value) => {
+        setInputs(prev => ({ ...prev, [key]: value }));
+      };
+
+      const syncFromActiveScenario = () => {
+        const breakdown = calculateCosts(activeScenario.config, activeScenario.inputs);
+        setInputs(prev => ({
+          ...prev,
+          asp: activeScenario.config.sellingPrice,
+          variableCpuPerUnit: parseFloat(breakdown.totalCost.toFixed(2)),
+          currentVolume: activeScenario.config.annualVolume
+        }));
+      };
+
+      return (
+        <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Facility Investment CapEx Solver</h1>
+              <p className="text-xs text-muted-foreground mt-1">Evaluate facility expansions, utilization thresholds, NPV, and IRR metrics.</p>
+            </div>
+            <button onClick={syncFromActiveScenario} className="flex items-center gap-1.5 text-xs border border-border px-3 py-2 rounded text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+              <Icon name="rotate" className="w-3.5 h-3.5" /> Sync from active scenario
+            </button>
+          </div>
+
+          <div className="grid grid-cols-5 gap-6">
+            {/* Left Inputs */}
+            <div className="col-span-2 space-y-4">
+              <div className="bg-card border border-card-border rounded-lg p-5 space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Investment Settings</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span>Upfront CapEx ($)</span>
+                    <input type="number" value={inputs.capEx} onChange={e => set("capEx", parseFloat(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Useful Life (Years)</span>
+                    <input type="number" value={inputs.usefulLifeYears} onChange={e => set("usefulLifeYears", parseInt(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Discount Rate (Hurdle %)</span>
+                    <input type="number" value={inputs.discountRatePct} onChange={e => set("discountRatePct", parseFloat(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-card border border-card-border rounded-lg p-5 space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Capacity & Utilization</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span>Current Capacity (units/yr)</span>
+                    <input type="number" value={inputs.currentCapacity} onChange={e => set("currentCapacity", parseInt(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>New Expansion Capacity</span>
+                    <input type="number" value={inputs.newCapacity} onChange={e => set("newCapacity", parseInt(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Target Utilization (%)</span>
+                    <input type="number" value={inputs.targetUtilizationPct} onChange={e => set("targetUtilizationPct", parseFloat(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-card border border-card-border rounded-lg p-5 space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fixed & Variable Cost</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span>Variable CPU ($)</span>
+                    <input type="number" value={inputs.variableCpuPerUnit} onChange={e => set("variableCpuPerUnit", parseFloat(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Additional Fixed O&M ($/yr)</span>
+                    <input type="number" value={inputs.additionalAnnualOverhead} onChange={e => set("additionalAnnualOverhead", parseFloat(e.target.value) || 0)} className="w-24 bg-input/20 border border-border rounded px-2.5 py-1 text-right" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Output Panel */}
+            <div className="col-span-3 space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-card border border-card-border rounded-lg p-4">
+                  <div className="text-[10px] text-muted-foreground uppercase mb-0.5">Payback Years</div>
+                  <div className="text-lg font-bold text-foreground">
+                    {isFinite(results.paybackMonths) ? `${(results.paybackMonths / 12).toFixed(1)} yrs` : "Never"}
+                  </div>
+                </div>
+                <div className="bg-card border border-card-border rounded-lg p-4">
+                  <div className="text-[10px] text-muted-foreground uppercase mb-0.5">Net Present Value</div>
+                  <div className={`text-lg font-bold ${results.npv >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {results.npv < 0 ? "-" : ""}${formatNumber(Math.abs(results.npv))}
+                  </div>
+                </div>
+                <div className="bg-card border border-card-border rounded-lg p-4">
+                  <div className="text-[10px] text-muted-foreground uppercase mb-0.5">Expansion IRR</div>
+                  <div className="text-lg font-bold text-foreground">
+                    {isFinite(results.irr) && !isNaN(results.irr) ? `${(results.irr * 100).toFixed(1)}%` : "N/A"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Absorption Curve Chart */}
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Cost Absorption (Before expansion vs After expansion)</h3>
+                <div className="h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={results.cpuCurve}>
+                      <XAxis dataKey="volume" tickFormatter={v => v.toLocaleString()} tick={{ fontSize: 9, fill: "hsl(210,14%,52%)" }} />
+                      <YAxis tickFormatter={v => `$${v}`} tick={{ fontSize: 9, fill: "hsl(210,14%,52%)" }} />
+                      <Tooltip contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                      <Line type="monotone" dataKey="after" stroke="hsl(210,90%,56%)" strokeWidth={2.5} name="After Expansion" />
+                      <Line type="monotone" dataKey="before" stroke="hsl(38,90%,52%)" strokeWidth={2.5} name="Before Expansion" connectNulls={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Cumulative cash flow chart */}
+              <div className="bg-card border border-card-border rounded-lg p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Cumulative Project Cash Flow ($)</h3>
+                <div className="h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={results.cashFlowByYear}>
+                      <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={{ fontSize: 9, fill: "hsl(210,14%,52%)" }} />
+                      <YAxis tickFormatter={v => fmtM(v)} tick={{ fontSize: 9, fill: "hsl(210,14%,52%)" }} />
+                      <Tooltip contentStyle={{ background: "hsl(222,26%,12%)", border: "1px solid hsl(222,20%,18%)" }} />
+                      <ReferenceLine y={0} stroke="hsl(210,14%,40%)" strokeWidth={1} />
+                      <Area type="monotone" dataKey="cumulative" stroke="hsl(142,70%,42%)" fill="hsl(142,70%,42%)" fillOpacity={0.1} name="Simple Cash Flow" />
+                      <Area type="monotone" dataKey="npvCumulative" stroke="hsl(210,90%,56%)" strokeDasharray="3 3" fill="hsl(210,90%,56%)" fillOpacity={0.05} name="Discounted NPV Cash Flow" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Methodology Explanation */}
+          <div className="bg-card/40 border border-border/60 rounded-lg p-5 mt-6 flex gap-3 text-xs leading-relaxed">
+            <div className="text-primary mt-0.5"><Icon name="info" className="w-4 h-4" /></div>
+            <div>
+              <h4 className="font-bold text-foreground mb-1">Methodology Overview: Dashboard Analytics</h4>
+              <p className="text-muted-foreground">
+                This dashboard aggregates data across your active product configuration. <strong>Cost Per Unit (CPU)</strong> is calculated dynamically based on chosen granularity. <strong>Gross Margin %</strong> evaluates profitability as: (ASP - CPU) / ASP. <strong>Annualized Profit</strong> projects total returns over volume: Volume * Unit Margin, while sub-panels query and display comparison results from the Make vs. Buy and Facility modules.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Mount to DOM
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
