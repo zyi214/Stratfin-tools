@@ -1,0 +1,19 @@
+project_name,period,cash_flow,label,category
+Injection Mold Tooling,0,-850000,Initial tooling investment,Capex
+Injection Mold Tooling,1,280000,Year 1 savings vs. contract manufacturing,Savings
+Injection Mold Tooling,2,310000,Year 2 savings (volume ramp),Savings
+Injection Mold Tooling,3,340000,Year 3 savings,Savings
+Injection Mold Tooling,4,370000,Year 4 savings,Savings
+Injection Mold Tooling,5,400000,Year 5 savings + residual tooling value,Savings
+Automated Test Station,0,-420000,ATE purchase and integration,Capex
+Automated Test Station,1,150000,Labor savings from automation,Savings
+Automated Test Station,2,175000,Labor savings + yield improvement,Savings
+Automated Test Station,3,200000,Full throughput at scale,Savings
+Automated Test Station,4,210000,Continued savings,Savings
+Automated Test Station,5,220000,Continued savings,Savings
+NRE - Next-Gen Sensor,0,-1200000,Engineering & mask set,NRE
+NRE - Next-Gen Sensor,1,-200000,Validation and qualification,NRE
+NRE - Next-Gen Sensor,2,400000,Initial product revenue contribution,Revenue
+NRE - Next-Gen Sensor,3,750000,Ramp revenue contribution,Revenue
+NRE - Next-Gen Sensor,4,1100000,Full rate revenue contribution,Revenue
+NRE - Next-Gen Sensor,5,1300000,Steady-state revenue contribution,Revenue
